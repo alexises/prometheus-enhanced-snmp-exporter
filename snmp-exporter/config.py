@@ -1,0 +1,190 @@
+import yaml
+import logging 
+logger = logging.getLogger(__name__)
+
+class BadConfigurationException(Exception):
+    pass
+
+__timerange_multiplier = {
+  's': 1,
+  'm': 60,
+  'h': 3600,
+  'd': 86400,
+  'w': 604800,
+  'M': 2592000,
+  'y': 31536000,
+}
+
+def timerange_to_second(timerange):
+    try:
+        value = int(timerange[:-1])
+        multiplier = timerange[-1]
+        if multiplier not in __timerange_multiplier.keys():
+            raise ValueError('{} is not a valid unit'.format(multiplier))
+        return value * __timerange_multiplier[multiplier]
+
+    except ValueError as e:
+        logger.error("%s don't appear to be a valid timerange", timerange)
+        logger.debug("stacktrace: %s", e)
+        raise e
+
+def parse_config(filename):
+    try:
+        with open(filename) as e:
+            logger.info('start config parsing')
+            cfg = yaml.load(e, Loader=yaml.BaseLoader)
+    except IOError as e:
+        logger.error("can't read config file {} {}".format(filename, e.strerror))
+        raise BadConfigurationException()
+
+    config = ParserConfiguration(cfg)
+    return config
+
+class HostConfiguration(object):
+    def __init__(self, config):
+       try:
+           self.hostname = config['hostname']
+       except KeyError as e:
+           logger.error('hostname is required')
+           raise BadConfigurationException()
+       self.community = config.get('community', 'public')
+       self.version = config.get('version', '1')
+       try:
+           #here, we store as is, we will perform metric reconciliation
+           #after the full parsing
+           self._modules_unresolved = []
+           self._modules = {}
+           self._labels = []
+           self._metrics = []
+           for module in config['modules']:
+               self._modules_unresolved.append(module)
+       except KeyError as e:
+           logger.error('config modules is not present')
+           raise BadConfigurationException()
+       except TypeError as e:
+           logger.error('config element modules should be a list')
+           raise BadConfigurationException()
+    
+    def _resolve_module(self, modules):
+        for module_name in self._modules_unresolved:
+            logger.debug('resolving %s', module_name)
+            if module_name not in modules.keys():
+                logger.warning('module is unavailable, discard it')
+                continue
+            self._modules[module_name] = modules[module_name]
+
+class HostsConfiguration(object):
+    def __init__(self, config):
+        self._hosts = []
+        try:
+            for host in config:
+                self._hosts.append(HostConfiguration(host))
+        except TypeError as e:
+            raise BadConfigurationException('hosts attribute should be a lists')
+
+    def __getitem__(self, key):
+        return self._hosts[key]
+
+    def items(self):
+        return self._hosts.items()
+
+    def hes_key(self, key):
+        return self._hosts.has_key(key)
+
+
+class OIDConfiguration(object):
+    def __init__(self, name, config, default_every, query_type, action):
+        self.action = action
+        self.name = name 
+        self.type = query_type
+        if isinstance(config, str):
+            self.oid = config
+            self.every = default_every
+        elif isinstance(config, dict):
+            try:
+                self.oid = config['oid']
+            except ValueError:
+                logger.info('oid argument is required')
+                raise BadConfigurationException()
+            self.every = config.get('every', default_every)
+        else:
+            logger.error('bad oid configuration')
+        try:
+            self.every = timerange_to_second(self.every)
+        except ValueError:
+            raise BadConfigurationException()
+
+
+class ModuleConfiguration(object):
+    @staticmethod
+    def _get_type(config):
+        try:
+            query_type = config['type']
+            if query_type not in ['get', 'walk']:
+               logger.error('type attribut should be "get" or "walk"')
+               raise BadConfigurationException()
+            return query_type
+        except KeyError as e:
+            logger.error('type attribut absent')
+            raise BadConfigurationException()
+
+    def __init__(self, config):
+        self.labels = {}
+        self.metrics = []
+        every = config.get('every', '60s')
+        try:
+            for label_group_name, label_group in config['labels'].items():
+                label_every = label_group.get('every', every)
+                query_type = self._get_type(label_group)
+                logger.debug('parse label list %s', label_group)
+                for label_name, label_data in label_group['mappings'].items():
+                    self.labels[label_name] = OIDConfiguration(label_name, label_data, label_every, query_type, 'label')
+        except ValueError as e:
+            logger.error('label attribute should be a dict')
+            raise BadConfigurationException()
+        try:
+            for metric in config['metrics']:
+                metric_every = metric.get('every', every)
+                query_type = self._get_type(metric)
+                for metric_name, metric_data in metric['mappings'].items():
+                    self.metrics.append(OIDConfiguration(metric_name, metric_data, metric_every, query_type, 'metric'))
+        except ValueError:
+            logger.error('metric attribute should be a list')
+            raise BadConfigurationException()
+
+class ModulesConfiguration(object):
+    def __init__(self, config):
+        self._modules = {}
+        try:
+            for module_name, module_data in config.items():
+                self._modules[module_name] = ModuleConfiguration(module_data)
+        except TypeError as e:
+            logger.error('modules key should be a dict')
+            raise BadConfigurationException()
+
+    def __getitem__(self, key):
+        return self._modules[key]
+
+    def items(self):
+        return self._modules.items()
+
+    def hes_key(self, key):
+        return self._modules.has_key(key)
+
+    def keys(self):
+        return self._modules.keys()
+
+class ParserConfiguration(object):
+    def __init__(self, config):
+        logger.debug(config)
+        try:
+            self.hosts = HostsConfiguration(config['hosts'])
+            logger.debug('hosts parsed')
+            self.modules = ModulesConfiguration(config['modules'])
+            logger.debug('modules parsed')
+        except KeyError as e:
+            logger.error('section {} not present, config useless'.format(e.args[0]))
+            raise BadConfigurationException()
+        
+        for host in self.hosts:
+            host._resolve_module(self.modules)

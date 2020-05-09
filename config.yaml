@@ -1,0 +1,30 @@
+hosts:
+  - hostname: localhost
+    version: v2c
+    community: public
+    modules: 
+      - system_data
+modules:
+  system_data:
+    labels:
+      system_label:
+        type: walk
+        every: 5m
+        mappings:
+          mibname: SNMPv2-MIB::sysORID
+          description: SNMPv2-MIB::sysORDescr
+      hostname:
+        type: get
+        mappings:
+          hostname: { oid: SNMPv2-MIB::sysName.0, every: 1d }
+    metrics:
+      - type: walk
+        every: 5m
+        mappings:
+          snmp_mib_uptime: SNMPv2-MIB::sysORDescr
+        append_tags:
+          - .available_mib_tag
+          - .hostname
+      - type: get
+        mappings: 
+          snmp_uptime: { oid: HOST-RESOURCES-MIB::hrSystemUptime.0, every: 60s }
