@@ -23,7 +23,7 @@ modules:
         mappings:
           snmp_mib_uptime: SNMPv2-MIB::sysORDescr
         append_tags:
-          - .available_mib_tag
+          - .system_label
           - .hostname
       - type: get
         mappings: 

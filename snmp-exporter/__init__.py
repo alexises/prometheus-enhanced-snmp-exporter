@@ -4,6 +4,8 @@ import logging
 import sys
 
 from config import parse_config, BadConfigurationException
+from snmp import SNMPQuerier
+from storage import LabelStorage
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,12 @@ def main():
     if arguments.check:
         logger.info('configuration valid, exit as required with --check')
         sys.exit(0)
+
+    storage = LabelStorage()
+    querier = SNMPQuerier(config, storage)
+    logger.info('warmup label cache (mono threaded)')
+    querier.warmup_label_cache()
+    logger.info('warmup metric')
 
 if __name__ == '__main__':
     main()

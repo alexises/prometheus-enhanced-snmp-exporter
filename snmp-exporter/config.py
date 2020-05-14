@@ -73,6 +73,15 @@ class HostConfiguration(object):
                 continue
             self._modules[module_name] = modules[module_name]
 
+    def __getitem__(self, key):
+        return self._modules[key]
+
+    def items(self):
+        return self._modules.items()
+
+    def hes_key(self, key):
+        return self._modules.has_key(key)
+
 class HostsConfiguration(object):
     def __init__(self, config):
         self._hosts = []
@@ -90,7 +99,6 @@ class HostsConfiguration(object):
 
     def hes_key(self, key):
         return self._hosts.has_key(key)
-
 
 class OIDConfiguration(object):
     def __init__(self, name, config, default_every, query_type, action):
@@ -129,7 +137,7 @@ class ModuleConfiguration(object):
             raise BadConfigurationException()
 
     def __init__(self, config):
-        self.labels = {}
+        self.labels_group = {}
         self.metrics = []
         every = config.get('every', '60s')
         try:
@@ -137,8 +145,9 @@ class ModuleConfiguration(object):
                 label_every = label_group.get('every', every)
                 query_type = self._get_type(label_group)
                 logger.debug('parse label list %s', label_group)
+                self.labels_group[label_group_name] = {}
                 for label_name, label_data in label_group['mappings'].items():
-                    self.labels[label_name] = OIDConfiguration(label_name, label_data, label_every, query_type, 'label')
+                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data, label_every, query_type, 'label')
         except ValueError as e:
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()
