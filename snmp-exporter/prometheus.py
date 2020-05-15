@@ -1,4 +1,8 @@
 import time
+from wsgiref.simple_server import make_server
+from pyramid.config import Configurator
+from pyramid.response import Response
+import threading
 
 def label_to_str(labels):
     labels_str = []
@@ -35,9 +39,13 @@ class PrometheusMetric():
 #prometheus_client that is more intended to add metric
 #on source code and not external metrics like this exporter
 #provides
-class PrometheusMetricStorage():
-    def __init__():
-        self._metrics{}
+class PrometheusMetricStorage(threading.Thread):
+    def __init__(self, hostname, port, uri):
+        threading.Thread.__init__(self)
+        self._metrics = {}
+        self._hostname = hostname
+        self._port = port
+        self._uri = uri
 
     def add_metric(self, name, metric_type, description):
         self._metrics[name] = PrometheusMetric(name, metric_type, description)
@@ -50,3 +58,23 @@ class PrometheusMetricStorage():
         for metric_name, metric_value in self._metrics():
             out += self.metric_print()
             out += "\n"
+
+    def _print_metrics_http(self):
+        return Response(self.metric_print))
+
+    def run():
+        self._server.serve_forever()
+
+    def start_http_server(self):
+        with Configurator() as config:
+            config.add_route('metric', self._metrics)
+            config.add_view(self._print_metrics_http, route_name='metric')
+            app = config.make_wsgi_app()
+        hostname_component = self._hostname.split(':')
+        hostname = hostname_component[0]
+        port = int(hostname_component[1])
+        if hostname == "":
+             hostname = "::"
+
+        self._server = make_server(hostname, port, app)
+        self.start()
