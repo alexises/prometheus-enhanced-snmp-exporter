@@ -12,18 +12,18 @@ def label_to_str(labels):
     return ', '.join(labels_str)
 
 class PrometheusMetric():
-    def __init__(self, name, metric_type="gauge", description):
+    def __init__(self, name, metric_type, description):
         self._name = name
         self._type = metric_type
         self._description = description
         self._labels = {}
 
-    def update_metrics(self, labels, values):
+    def update_metric(self, labels, values):
         label_str = label_to_str(labels)
         if label_str not in self._labels:
             self._labels[label_str] = {}
-        self._label[label_str]['metric']  = values
-        self._label[label_str]['timestamp'] = int(time.time() * 1000)
+        self._labels[label_str]['metric']  = values
+        self._labels[label_str]['timestamp'] = int(time.time() * 1000)
 
     def metric_print():
         #first print header information
@@ -40,11 +40,10 @@ class PrometheusMetric():
 #on source code and not external metrics like this exporter
 #provides
 class PrometheusMetricStorage(threading.Thread):
-    def __init__(self, hostname, port, uri):
+    def __init__(self, hostname, uri):
         threading.Thread.__init__(self)
         self._metrics = {}
         self._hostname = hostname
-        self._port = port
         self._uri = uri
 
     def add_metric(self, name, metric_type, description):
@@ -54,13 +53,14 @@ class PrometheusMetricStorage(threading.Thread):
         self._metrics[metric_name].update_metric(labels, value)
 
     def metric_print(self):
-        out ""
+        out = ""
         for metric_name, metric_value in self._metrics():
             out += self.metric_print()
             out += "\n"
+        return out
 
     def _print_metrics_http(self):
-        return Response(self.metric_print))
+        return Response(self.metric_print())
 
     def run():
         self._server.serve_forever()

@@ -1,4 +1,5 @@
 import yaml
+import yaml.scanner
 import logging 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,10 @@ def parse_config(filename):
             logger.info('start config parsing')
             cfg = yaml.load(e, Loader=yaml.BaseLoader)
     except IOError as e:
-        logger.error("can't read config file {} {}".format(filename, e.strerror))
+        logger.error("can't read config file %s %s", filename, e.strerror)
+        raise BadConfigurationException()
+    except yaml.scanner.ScannerError as e:
+        logger.error('bad YAML format %s', e)
         raise BadConfigurationException()
 
     config = ParserConfiguration(cfg)
@@ -124,17 +128,9 @@ class OIDConfiguration(object):
 
 class MetricOIDConfiguration(OIDConfiguration):
     def __init__(self, name, config, default_every, query_type, action, labels):
-        OIDConfiguration.__init__(name, config, default_every, query_type, action)
-        self._unresolved_labels_group = labels
-        self.label_group = []
+        OIDConfiguration.__init__(self, name, config, default_every, query_type, action)
+        self.label_group = labels
 
-    def _resolve_module(self, module):
-        for i in self._unresolved_labels_group:
-            if i[0] == '.':
-                self.label_group.append((module, i[1:]))
-            else
-                component = i.split('.')
-                self.label_group.append((i[0], i[1]))
 
 class ModuleConfiguration(object):
     @staticmethod
@@ -169,8 +165,7 @@ class ModuleConfiguration(object):
                 metric_every = metric.get('every', every)
                 query_type = self._get_type(metric)
                 for metric_name, metric_data in metric['mappings'].items():
-                    metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every, query_type, 'metrics', metric['append_tags'])
-                    metric_obj._resolve_module(module_name)
+                    metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every, query_type, 'metrics', metric.get('append_tags', []))
                     self.metrics.append(metric_obj)
         except ValueError:
             logger.error('metric attribute should be a list')
@@ -184,6 +179,7 @@ class ModulesConfiguration(object):
                 self._modules[module_name] = ModuleConfiguration(module_data, module_name)
         except TypeError as e:
             logger.error('modules key should be a dict')
+            logger.exception('detail')
             raise BadConfigurationException()
 
     def __getitem__(self, key):
@@ -206,7 +202,7 @@ class ParserConfiguration(object):
             logger.debug('hosts parsed')
             self.modules = ModulesConfiguration(config['modules'])
             logger.debug('modules parsed')
-            self.descriptions = config['description']) 
+            self.descriptions = config['description'] 
         except KeyError as e:
             logger.error('section {} not present, config useless'.format(e.args[0]))
             raise BadConfigurationException()

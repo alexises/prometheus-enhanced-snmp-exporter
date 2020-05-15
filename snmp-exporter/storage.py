@@ -28,6 +28,7 @@ class LabelStorage(object):
     def resolve_label(self, hostname, module, label_group, walk_idx=None):
         if hostname not in self._labels:
             logger.warning('no label available for %s', hostname)
+            return {}
         if isinstance(label_group, str):
             label_group = [ label_group ]
         labels = {}
@@ -39,8 +40,8 @@ class LabelStorage(object):
             if group_component[0] == '':
                 group_component[0] = module
 
-            for label, value in self._labels.get(hostname, {}):
-                get(group_component[0], {}).get(group_component[1], {})
+            for label, value in self._labels.get(hostname, {}). \
+                get(group_component[0], {}).get(group_component[1], {}):
                 if walk_idx is None or \
                    not isinstance(value, dict):
                     labels[label] = value

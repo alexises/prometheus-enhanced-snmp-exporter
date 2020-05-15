@@ -160,18 +160,12 @@ class SNMPQuerier(object):
         
         logger.debug(output)
         #now we need to resolve labels
-        if action = 'get':
-            labels = {}
-            for module_name, label_group_name in metric.label_group.items():
-                curr_labels = self._storage.resolve_label(hostname, module_name, label_group_name)
-                labels.update(curr_labels)
+        if metric_type == 'get':
+            labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
             self._metrics.update_metric(metric_name, labels, value)
         else:
-            for output_index, output_value in output:
-                labels = {}
-                for module_name, label_group_name in metric.label_group.items()
-                    curr_labels = self._storage.resolve_label(hostname, module_name, label_group_name, output_index)
-                    labels.update(curr_labels)
+            for output_index, output_value in output.items():
+                labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)
                 self._metrics.update_metric(metric_name, labels, output_value)
 
     def warmup_label_cache(self):
@@ -185,5 +179,5 @@ class SNMPQuerier(object):
     def warmup_metrics(self):
         for host_config in self._config.hosts:
             for module_name, module_data in host_config.items():
-                for metric in module_data.metrics():
+                for metric in module_data.metrics:
                      self._update_metric(host_config, module_name, metric)
