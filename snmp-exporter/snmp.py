@@ -43,10 +43,11 @@ def _snmp_obj_to_str(data, mib_controller):
 
 
 class SNMPQuerier(object):
-    def __init__(self, config, storage):
+    def __init__(self, config, storage, metrics):
        self._config = config
        self._storage = storage
        self._engine = SnmpEngine()
+       self._metrics = metrics
        self.mib_controller = MibViewController(self._engine.getMibBuilder())
 
     def _mibstr_to_objstr(self, mib):
@@ -126,7 +127,7 @@ class SNMPQuerier(object):
             return None
 
 
-    def _update_label(self, host_config, module_name , label_group_name, label_name, metric):
+    def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
         #host_name
         community = host_config.community
         version = host_config.version
@@ -143,7 +144,35 @@ class SNMPQuerier(object):
         else:
             for key, val in output.items():
                 self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
+             
+    
+    def _update_metric(self, host_config, module_name, metric):
+        #host_name
+        community = host_config.community
+        version = host_config.version
+        hostname = host_config.hostname
+        #metrics
+        metric_name = metric.name
+        metric_type = metric.type
+        oid = metric.oid
+        action = metric.action
+        output = self.query(oid, hostname, community, version, metric_type)
         
+        logger.debug(output)
+        #now we need to resolve labels
+        if action = 'get':
+            labels = {}
+            for module_name, label_group_name in metric.label_group.items():
+                curr_labels = self._storage.resolve_label(hostname, module_name, label_group_name)
+                labels.update(curr_labels)
+            self._metrics.update_metric(metric_name, labels, value)
+        else:
+            for output_index, output_value in output:
+                labels = {}
+                for module_name, label_group_name in metric.label_group.items()
+                    curr_labels = self._storage.resolve_label(hostname, module_name, label_group_name, output_index)
+                    labels.update(curr_labels)
+                self._metrics.update_metric(metric_name, labels, output_value)
 
     def warmup_label_cache(self):
         for host_config in self._config.hosts:
@@ -152,3 +181,9 @@ class SNMPQuerier(object):
                     for label_name, label_data in label_group_data.items():
                         self._update_label(host_config, module_name, label_group_name, label_name, label_data)
 
+
+    def warmup_metrics(self):
+        for host_config in self._config.hosts:
+            for module_name, module_data in host_config.items():
+                for metric in module_data.metrics():
+                     self._update_metric(host_config, module_name, metric)

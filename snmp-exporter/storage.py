@@ -41,7 +41,8 @@ class LabelStorage(object):
 
             for label, value in self._labels.get(hostname, {}):
                 get(group_component[0], {}).get(group_component[1], {})
-                if walk_idx is None:
+                if walk_idx is None or \
+                   not isinstance(value, dict):
                     labels[label] = value
                 else:
                     labels[label] = value[walk_idx]

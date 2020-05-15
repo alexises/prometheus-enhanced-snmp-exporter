@@ -6,6 +6,7 @@ import sys
 from config import parse_config, BadConfigurationException
 from snmp import SNMPQuerier
 from storage import LabelStorage
+from prometheus import PrometheusMetricStorage
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +64,17 @@ def main():
         sys.exit(0)
 
     storage = LabelStorage()
-    querier = SNMPQuerier(config, storage)
+    metrics = PrometheusMetricStorage()
+    querier = SNMPQuerier(config, storage, metrics)
+
     logger.info('warmup label cache (mono threaded)')
     querier.warmup_label_cache()
     logger.info('warmup metric')
+    for metric_name, metric_data in config.descriptions:
+        metrics.add_metric(metric_name, metric_data['type'], metric_data['description'])
+    querier.warmup_metrics()
+    logger.info('warmup done, now expose metrics'))
+    metrics.start_http_server()
 
 if __name__ == '__main__':
     main()

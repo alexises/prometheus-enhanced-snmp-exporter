@@ -28,3 +28,10 @@ modules:
       - type: get
         mappings: 
           snmp_uptime: { oid: HOST-RESOURCES-MIB::hrSystemUptime.0, every: 60s }
+description:
+  snmp_mib_uptime:
+    type: counter
+    description: "uptime of corresponding mib"
+  snmp_uptime:
+    type: counter
+    description: "uptime of corresponding host'

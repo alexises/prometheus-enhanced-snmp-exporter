@@ -122,6 +122,19 @@ class OIDConfiguration(object):
         except ValueError:
             raise BadConfigurationException()
 
+class MetricOIDConfiguration(OIDConfiguration):
+    def __init__(self, name, config, default_every, query_type, action, labels):
+        OIDConfiguration.__init__(name, config, default_every, query_type, action)
+        self._unresolved_labels_group = labels
+        self.label_group = []
+
+    def _resolve_module(self, module):
+        for i in self._unresolved_labels_group:
+            if i[0] == '.':
+                self.label_group.append((module, i[1:]))
+            else
+                component = i.split('.')
+                self.label_group.append((i[0], i[1]))
 
 class ModuleConfiguration(object):
     @staticmethod
@@ -136,7 +149,7 @@ class ModuleConfiguration(object):
             logger.error('type attribut absent')
             raise BadConfigurationException()
 
-    def __init__(self, config):
+    def __init__(self, config, module_name):
         self.labels_group = {}
         self.metrics = []
         every = config.get('every', '60s')
@@ -156,7 +169,9 @@ class ModuleConfiguration(object):
                 metric_every = metric.get('every', every)
                 query_type = self._get_type(metric)
                 for metric_name, metric_data in metric['mappings'].items():
-                    self.metrics.append(OIDConfiguration(metric_name, metric_data, metric_every, query_type, 'metric'))
+                    metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every, query_type, 'metrics', metric['append_tags'])
+                    metric_obj._resolve_module(module_name)
+                    self.metrics.append(metric_obj)
         except ValueError:
             logger.error('metric attribute should be a list')
             raise BadConfigurationException()
@@ -166,7 +181,7 @@ class ModulesConfiguration(object):
         self._modules = {}
         try:
             for module_name, module_data in config.items():
-                self._modules[module_name] = ModuleConfiguration(module_data)
+                self._modules[module_name] = ModuleConfiguration(module_data, module_name)
         except TypeError as e:
             logger.error('modules key should be a dict')
             raise BadConfigurationException()
@@ -191,6 +206,7 @@ class ParserConfiguration(object):
             logger.debug('hosts parsed')
             self.modules = ModulesConfiguration(config['modules'])
             logger.debug('modules parsed')
+            self.descriptions = config['description']) 
         except KeyError as e:
             logger.error('section {} not present, config useless'.format(e.args[0]))
             raise BadConfigurationException()
