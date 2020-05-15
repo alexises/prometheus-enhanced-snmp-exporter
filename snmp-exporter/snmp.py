@@ -162,7 +162,7 @@ class SNMPQuerier(object):
         #now we need to resolve labels
         if metric_type == 'get':
             labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
-            self._metrics.update_metric(metric_name, labels, value)
+            self._metrics.update_metric(metric_name, labels, output)
         else:
             for output_index, output_value in output.items():
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)

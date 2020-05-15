@@ -11,7 +11,7 @@ class LabelStorage(object):
              self._labels[hostname] = {}
         if module not in self._labels[hostname]:
              self._labels[hostname][module] = {}
-        if label_group not in self._labels[hostname]:
+        if label_group not in self._labels[hostname][module]:
              self._labels[hostname][module][label_group] = {}
         if label_name not in self._labels[hostname][module][label_group] and \
            walk_idx is not None:
@@ -41,7 +41,7 @@ class LabelStorage(object):
                 group_component[0] = module
 
             for label, value in self._labels.get(hostname, {}). \
-                get(group_component[0], {}).get(group_component[1], {}):
+                get(group_component[0], {}).get(group_component[1], {}).items():
                 if walk_idx is None or \
                    not isinstance(value, dict):
                     labels[label] = value

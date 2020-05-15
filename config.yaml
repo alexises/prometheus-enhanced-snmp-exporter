@@ -21,7 +21,7 @@ modules:
       - type: walk
         every: 5m
         mappings:
-          snmp_mib_uptime: SNMPv2-MIB::sysORDescr
+          snmp_mib_uptime: SNMPv2-MIB::sysORUpTime
         append_tags:
           - .system_label
           - .hostname
@@ -34,4 +34,4 @@ description:
     description: "uptime of corresponding mib"
   snmp_uptime:
     type: counter
-    description: "uptime of corresponding host'
+    description: "uptime of corresponding host"
