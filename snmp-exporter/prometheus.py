@@ -34,7 +34,9 @@ class PrometheusMetric():
         out = "#TYPE {} {}\n#HELP {} {}\n".format(self._name, self._type, self._name, self._description)
         
         #next print metric lines
-        for label_str, label_data in sorted(self._labels.items()):
+        #to deal with thread safety we will avoid generator
+        for label_str in list(sorted(self._labels.keys())):
+            label_data = self._labels[label_str]
             out += "{}{{{}}} {} [{}]\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
         return out
 

@@ -7,6 +7,7 @@ from config import parse_config, BadConfigurationException
 from snmp import SNMPQuerier
 from storage import LabelStorage
 from prometheus import PrometheusMetricStorage
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ def get_args(handler):
     parser.add_argument('--listen', help='listen address', default=':9100', required=False)
     parser.add_argument('--path', help='path used to expose metric', default='/metrics', required=False)
     parser.add_argument('-c', '--check', help="simply check config and exit", action='store_true', default=False, required=False)
+    parser.add_argument('-M', '--max-threads', help="maximum number of thread used for fetching", default=1, type=int)
     args = parser.parse_args()
 
     if args.log_level == "debug":
@@ -67,12 +69,12 @@ def main():
     metrics = PrometheusMetricStorage(arguments.listen, arguments.path)
     querier = SNMPQuerier(config, storage, metrics)
 
-    logger.info('warmup label cache (mono threaded)')
-    querier.warmup_label_cache()
-    logger.info('warmup metric')
+    logger.info('warmup label cache (%s threads)', arguments.max_threads)
+    querier.warmup_label_cache(arguments.max_threads)
+    logger.info('warmup metric (%s threads)', arguments.max_threads)
     for metric_name, metric_data in config.descriptions.items():
         metrics.add_metric(metric_name, metric_data['type'], metric_data['description'])
-    querier.warmup_metrics()
+    querier.warmup_metrics(arguments.max_threads)
     logger.info('warmup done, now expose metrics')
     metrics.start_http_server()
 

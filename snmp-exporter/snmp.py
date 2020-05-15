@@ -3,6 +3,7 @@ from pysnmp.error import PySnmpError
 from pysnmp.smi.error import SmiError
 from pysnmp.smi.view import MibViewController
 from pysnmp.proto.rfc1902 import *
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
 logger = logging.getLogger(__name__)
@@ -137,6 +138,7 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         action = metric.action
+        logger.info('update label for %s: %s', hostname, metric_name)
         output = self.query(oid, hostname, community, version, metric_type)
         logger.debug(output)
         if metric_type == 'get':
@@ -168,16 +170,26 @@ class SNMPQuerier(object):
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)
                 self._metrics.update_metric(metric_name, labels, output_value)
 
-    def warmup_label_cache(self):
-        for host_config in self._config.hosts:
-            for module_name, module_data in host_config.items():
-                for label_group_name, label_group_data in module_data.labels_group.items():
-                    for label_name, label_data in label_group_data.items():
-                        self._update_label(host_config, module_name, label_group_name, label_name, label_data)
+    def warmup_label_cache(self, max_threads):
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            futurs = []
+            for host_config in self._config.hosts:
+                for module_name, module_data in host_config.items():
+                    for label_group_name, label_group_data in module_data.labels_group.items():
+                        for label_name, label_data in label_group_data.items():
+                            futur = executor.submit(self._update_label, host_config, module_name, label_group_name, label_name, label_data)
+                            futurs.append(futur)
+            for futur in as_completed(futurs):
+                pass
 
 
-    def warmup_metrics(self):
-        for host_config in self._config.hosts:
-            for module_name, module_data in host_config.items():
-                for metric in module_data.metrics:
-                     self._update_metric(host_config, module_name, metric)
+    def warmup_metrics(self, max_threads):
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            futurs = []
+            for host_config in self._config.hosts:
+                for module_name, module_data in host_config.items():
+                    for metric in module_data.metrics:
+                         futur = executor.submit(self._update_metric, host_config, module_name, metric)
+                         futurs.append(futur)
+            for futur in as_completed(futurs):
+                pass
