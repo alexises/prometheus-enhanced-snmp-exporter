@@ -7,7 +7,7 @@ from config import parse_config, BadConfigurationException
 from snmp import SNMPQuerier
 from storage import LabelStorage
 from prometheus import PrometheusMetricStorage
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from scheduler import JobScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,8 @@ def get_args(handler):
 def init_logger():
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
+    apscheduler = logging.getLogger('apscheduler')
+    apscheduler.setLevel(logging.DEBUG)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -68,15 +70,18 @@ def main():
     storage = LabelStorage()
     metrics = PrometheusMetricStorage(arguments.listen, arguments.path)
     querier = SNMPQuerier(config, storage, metrics)
+    scheduler = JobScheduler(arguments.max_threads)
 
     logger.info('warmup label cache (%s threads)', arguments.max_threads)
-    querier.warmup_label_cache(arguments.max_threads)
+    querier.warmup_label_cache(arguments.max_threads, scheduler)
     logger.info('warmup metric (%s threads)', arguments.max_threads)
     for metric_name, metric_data in config.descriptions.items():
         metrics.add_metric(metric_name, metric_data['type'], metric_data['description'])
-    querier.warmup_metrics(arguments.max_threads)
+    querier.warmup_metrics(arguments.max_threads, scheduler)
     logger.info('warmup done, now expose metrics')
     metrics.start_http_server()
+    logger.info('and finally, start scheduler')
+    scheduler.start_scheduler()
 
 if __name__ == '__main__':
     main()

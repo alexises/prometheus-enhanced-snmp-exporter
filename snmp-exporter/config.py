@@ -86,6 +86,9 @@ class HostConfiguration(object):
     def hes_key(self, key):
         return self._modules.has_key(key)
 
+    def __repr__(self):
+        return 'host:' + self.hostname
+
 class HostsConfiguration(object):
     def __init__(self, config):
         self._hosts = []
@@ -125,6 +128,9 @@ class OIDConfiguration(object):
             self.every = timerange_to_second(self.every)
         except ValueError:
             raise BadConfigurationException()
+
+    def __repr__(self):
+       return '{}->{} [{}s]'.format(self.name, self.oid, self.every)
 
 class MetricOIDConfiguration(OIDConfiguration):
     def __init__(self, name, config, default_every, query_type, action, labels):

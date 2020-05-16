@@ -170,7 +170,7 @@ class SNMPQuerier(object):
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)
                 self._metrics.update_metric(metric_name, labels, output_value)
 
-    def warmup_label_cache(self, max_threads):
+    def warmup_label_cache(self, max_threads, scheduler):
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
             futurs = []
             for host_config in self._config.hosts:
@@ -179,11 +179,12 @@ class SNMPQuerier(object):
                         for label_name, label_data in label_group_data.items():
                             futur = executor.submit(self._update_label, host_config, module_name, label_group_name, label_name, label_data)
                             futurs.append(futur)
+                            scheduler.add_job(self._update_label, label_data.every, host_config, module_name, label_group_name, label_name, label_data)
             for futur in as_completed(futurs):
                 pass
 
 
-    def warmup_metrics(self, max_threads):
+    def warmup_metrics(self, max_threads, scheduler):
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
             futurs = []
             for host_config in self._config.hosts:
@@ -191,5 +192,6 @@ class SNMPQuerier(object):
                     for metric in module_data.metrics:
                          futur = executor.submit(self._update_metric, host_config, module_name, metric)
                          futurs.append(futur)
+                         scheduler.add_job(self._update_metric, metric.every, host_config, module_name, metric)
             for futur in as_completed(futurs):
                 pass
