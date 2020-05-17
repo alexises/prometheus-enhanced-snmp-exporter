@@ -1,0 +1,19 @@
+[Unit]
+Description
+Description=Enhanced SNMP prometheus exporter with multi host management
+Documentation=https://github.com/alexises/prometheus-enhanced-snmp-exporter
+
+[Service]
+Type=simple
+Restart=on-failure
+EnvironmentFile=-/etc/sysconfig/prometheus-enhanced-snmp-exporter
+ExecStart=/usr/bin/prometheus-enhanced-snmp-exporter \^
+    --filename /etc/prometheus-enhanced-snmp-exporter/config.yaml
+    --log-level $LOG_LEVEL \
+    --listen $(LISTEN_ADDRESS) \
+    --path $(PATH_ADDRESS) \
+    --max-threads $(MAX_THREADS) \
+
+[Install]
+WantedBy=multi-user.target
+

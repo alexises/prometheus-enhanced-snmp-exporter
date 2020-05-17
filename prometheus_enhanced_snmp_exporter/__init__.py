@@ -3,11 +3,11 @@ import argparse
 import logging
 import sys
 
-from config import parse_config, BadConfigurationException
-from snmp import SNMPQuerier
-from storage import LabelStorage
-from prometheus import PrometheusMetricStorage
-from scheduler import JobScheduler
+from .config import parse_config, BadConfigurationException
+from .snmp import SNMPQuerier
+from .storage import LabelStorage
+from .prometheus import PrometheusMetricStorage
+from .scheduler import JobScheduler
 
 logger = logging.getLogger(__name__)
 

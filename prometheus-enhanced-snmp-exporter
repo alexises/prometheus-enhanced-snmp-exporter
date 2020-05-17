@@ -1,0 +1,5 @@
+#!/usr/bin/python3
+
+from  prometheus_enhanced_snmp_exporter import main
+
+main()
