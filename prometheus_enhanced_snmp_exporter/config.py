@@ -158,8 +158,8 @@ class ModuleConfiguration(object):
     def _get_type(config):
         try:
             query_type = config['type']
-            if query_type not in ['get', 'walk']:
-               logger.error('type attribut should be "get" or "walk"')
+            if query_type not in ['get', 'walk', "community_walk"]:
+               logger.error('type attribut should be "get", "walk" or "community_walk"')
                raise BadConfigurationException()
             return query_type
         except KeyError as e:

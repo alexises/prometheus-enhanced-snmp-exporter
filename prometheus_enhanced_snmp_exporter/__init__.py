@@ -20,7 +20,7 @@ import sys
 
 from .config import parse_config, BadConfigurationException
 from .snmp import SNMPQuerier
-from .storage import LabelStorage
+from .storage import LabelStorage, TemplateStorage
 from .prometheus import PrometheusMetricStorage
 from .scheduler import JobScheduler
 
@@ -83,10 +83,13 @@ def main():
         sys.exit(0)
 
     storage = LabelStorage()
+    template_storage = TemplateStorage()
     metrics = PrometheusMetricStorage(arguments.listen, arguments.path)
-    querier = SNMPQuerier(config, storage, metrics)
+    querier = SNMPQuerier(config, storage, template_storage, metrics)
     scheduler = JobScheduler(arguments.max_threads)
 
+    logger.info('warmup template cache')
+    querier.warmup_template_cache(arguments.max_threads, scheduler)
     logger.info('warmup label cache (%s threads)', arguments.max_threads)
     querier.warmup_label_cache(arguments.max_threads, scheduler)
     logger.info('warmup metric (%s threads)', arguments.max_threads)

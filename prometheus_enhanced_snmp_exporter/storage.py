@@ -18,6 +18,53 @@ from threading import Lock
 
 logger = logging.getLogger(__name__)
 
+class TemplatedLabelStorage(object):
+    def __init__(self):
+        self._labels = {}
+        self._lock_init = Lock()
+
+    def set_label(self, hostname, module, label_group, label_data, walk_idx=None):
+        self._lock_init.acquire()
+        if hostname not in self._labels:
+             logger.debug('init templated hostname %s', hostname)
+             self._labels[hostname] = {}
+        if module not in self._labels[hostname]:
+             logger.debug('init templated module %s for hostname %s', hostname, module)
+             self._labels[hostname][module] = {}
+        if label_group not in self._labels[hostname][module] \
+           walk_idx is not None:
+             logger.debug('init templated label_group for hostname and module %s %s %s', label_group, hostname, module)
+             self._labels[hostname][module][label_group] = {}
+        self._lock_init.release()
+        if walk_idx is not None:
+             self._labels[hostname][module][label_group][walk_idx] = label_data
+             logger.debug('update label [%s:%s] %s[%s] = %s',
+                          hostname, module, label_group, walk_idx, label_data)
+        else:
+             self._labels[hostname][module][label_group] = label_data
+             logger.debug('update label [%s,%s] %s = %s',
+                          hostname, module, label_group, label_data)
+
+    def resolve_community(self, hostname, module, label_group, template, community):
+        if hostname not in self._labels:
+            logger.debug('hostname %s not in labels', hostname)
+            return [(community, None, None)]
+        if module not in self._labels[hostname]
+            logger.debug('module %s not in labels', module)
+            return [(community, None, None)]
+        if label_group not in self._labels[hostname][module]
+            logger.debug('label_group %s not in labels', label_group)
+            return [(community, None, None)]
+        labels = self._labels[hostname][module][label_group]
+        if not isinstance(labels, list):
+            labels = [labels]
+        out = []
+        for label in labels:
+            community_tpl = template.format(community=community, template=label)
+            out.append((community_tpl, label_group, label))
+        return out
+
+
 class LabelStorage(object):
     def __init__(self):
         self._labels = {}

@@ -59,9 +59,10 @@ def _snmp_obj_to_str(data, mib_controller):
 
 
 class SNMPQuerier(object):
-    def __init__(self, config, storage, metrics):
+    def __init__(self, config, storage, template_storage, metrics):
        self._config = config
        self._storage = storage
+       self._template_storage = template_storage
        self._engine = SnmpEngine()
        self._metrics = metrics
        self.mib_controller = MibViewController(self._engine.getMibBuilder())
@@ -173,6 +174,7 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         action = metric.action
+
         output = self.query(oid, hostname, community, version, metric_type)
         
         logger.debug(output)
