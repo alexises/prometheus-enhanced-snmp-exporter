@@ -224,10 +224,11 @@ class SNMPQuerier(object):
             for host_config in self._config.hosts:
                 for module_name, module_data in host_config.items():
                     for template_group_name, template_group_data in module_data.template_label.items():
-                        futur = executor.submit(self._update_template_label, host_config, module_name, \
-                        template_group_name, template_group_data)
+                        futur = executor.submit(self._update_template_label, host_config, module_name,
+                                                template_group_name, template_group_data)
                         futurs.append(futur)
-                        scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name, template_group_name, template_group_data)
+                        scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name,
+                                          template_group_name, template_group_data)
             for futur in as_completed(futurs):
                 pass
 

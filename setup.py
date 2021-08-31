@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='prometheus-enhanced-snmp-exporter',
     version='0.1dev',
-    packages=['prometheus_enhanced_snmp_exporter',],
+    packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
     long_description=open('README.md').read(),
