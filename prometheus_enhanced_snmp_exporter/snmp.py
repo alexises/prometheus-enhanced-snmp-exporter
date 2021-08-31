@@ -13,11 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
-from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmb, builkCmd, ContextData
+from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmd, bulkCmd, ContextData
 from pysnmp.error import PySnmpError
 from pysnmp.smi.error import SmiError
 from pysnmp.smi.view import MibViewController
-from pysnmp.proto.rfc1902 import Null, Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTick, Counter64, OctetString, Opaque, IpAddress, Bits, ObjectIdentity
+from pysnmp.proto.rfc1902 import Null, Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, OctetString, Opaque, IpAddress, Bits, ObjectIdentity
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
