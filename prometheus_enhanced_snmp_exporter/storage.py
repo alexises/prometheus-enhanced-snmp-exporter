@@ -18,7 +18,7 @@ from threading import Lock
 
 logger = logging.getLogger(__name__)
 
-class TemplatedLabelStorage(object):
+class TemplateStorage(object):
     def __init__(self):
         self._labels = {}
         self._lock_init = Lock()
@@ -31,7 +31,7 @@ class TemplatedLabelStorage(object):
         if module not in self._labels[hostname]:
              logger.debug('init templated module %s for hostname %s', hostname, module)
              self._labels[hostname][module] = {}
-        if label_group not in self._labels[hostname][module] \
+        if label_group not in self._labels[hostname][module] and \
            walk_idx is not None:
              logger.debug('init templated label_group for hostname and module %s %s %s', label_group, hostname, module)
              self._labels[hostname][module][label_group] = {}
@@ -49,10 +49,10 @@ class TemplatedLabelStorage(object):
         if hostname not in self._labels:
             logger.debug('hostname %s not in labels', hostname)
             return [(community, None, None)]
-        if module not in self._labels[hostname]
+        if module not in self._labels[hostname]:
             logger.debug('module %s not in labels', module)
             return [(community, None, None)]
-        if label_group not in self._labels[hostname][module]
+        if label_group not in self._labels[hostname][module]:
             logger.debug('label_group %s not in labels', label_group)
             return [(community, None, None)]
         labels = self._labels[hostname][module][label_group]
@@ -70,7 +70,8 @@ class LabelStorage(object):
         self._labels = {}
         self._lock_init = Lock()
 
-    def set_label(self, hostname, module, label_group, label_name, label_data, walk_idx=None):
+    def set_label(self, hostname, module, label_group, label_name, label_data, template_name, template_data, walk_idx=None):
+        template_str = "{}={}".format(template_name, template_data)
         self._lock_init.acquire()
         if hostname not in self._labels:
              logger.debug('init hostname %s', hostname)
@@ -81,20 +82,23 @@ class LabelStorage(object):
         if label_group not in self._labels[hostname][module]:
              logger.debug('init label_group for hostname and module %s %s %s', label_group, hostname, module)
              self._labels[hostname][module][label_group] = {}
-        if label_name not in self._labels[hostname][module][label_group] and \
-           walk_idx is not None:
+        if label_name not in self._labels[hostname][module][label_group]:
              self._labels[hostname][module][label_group][label_name] = {}
+        if template_str not in  self._labels[hostname][module][label_group]  and \
+           walk_idx is not None:
+             self._labels[hostname][module][label_group][label_name][template_str] = {}
         self._lock_init.release()
         if walk_idx is not None:
-             self._labels[hostname][module][label_group][label_name][walk_idx] = label_data
+             self._labels[hostname][module][label_group][label_name][template_str][walk_idx] = label_data
              logger.debug('update label [%s:%s] %s:%s[%s] = %s', 
                           hostname, module, label_group, label_name, walk_idx, label_data)
         else:
-             self._labels[hostname][module][label_group][label_name] = label_data
+             self._labels[hostname][module][label_group][label_name][template_str] = label_data
              logger.debug('update label [%s,%s] %s:%s = %s', 
                           hostname, module, label_group, label_name, label_data)
 
-    def resolve_label(self, hostname, module, label_group, walk_idx=None):
+    def resolve_label(self, hostname, module, label_group, template_name, template_data, walk_idx=None):
+        template_str = "{}={}".format(template_name, template_data)
         if hostname not in self._labels:
             logger.warning('no label available for %s', hostname)
             return {}
@@ -110,7 +114,7 @@ class LabelStorage(object):
                 group_component[0] = module
 
             for label, value in self._labels.get(hostname, {}). \
-                get(group_component[0], {}).get(group_component[1], {}).items():
+                get(group_component[0], {}).get(group_component[1], {}).get(template_str, {}).items():
                 if walk_idx is None or \
                    not isinstance(value, dict):
                     labels[label] = value

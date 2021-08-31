@@ -175,7 +175,7 @@ class ModuleConfiguration(object):
             for template_label_name, template_label in config['template_labels'].items():
                 label_every = template_label.get('every', every)
                 query_type = self._get_type(template_label)
-                self.template_labelp[template_label_name] = OIDConfiguration(temmplate_label_name, template_label['mapping'], label_every, query_type, 'templated_label')
+                self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'], label_every, query_type, 'templated_label')
         except ValueError as e:
             logger.error('templated_label attibute should be a dict')
             raise BadConfigurationException()
