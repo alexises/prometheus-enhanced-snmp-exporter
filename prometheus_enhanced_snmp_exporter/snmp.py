@@ -120,7 +120,7 @@ class SNMPQuerier(object):
                 raise ValueError('unknow method, should be get or walk')
             out = []
             for error_indicator, error_status, error_index, output in snmp_method(SnmpEngine(), community, hostname_obj,
-                                                                                  ContextData(), *positionals_args, 
+                                                                                  ContextData(), *positionals_args,
                                                                                   **extra_args):
                 if error_indicator is not None:
                     logger.error('snmp error while fetching %s : %s', oid, error_indicator)

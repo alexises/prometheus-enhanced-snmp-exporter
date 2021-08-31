@@ -115,7 +115,7 @@ class LabelStorage(object):
                 group_component[0] = module
 
             for label, value in self._labels.get(hostname, {}).get(group_component[0], {}).\
-                                get(group_component[1], {}).get(template_str, {}).items():
+                get(group_component[1], {}).get(template_str, {}).items():
                 if walk_idx is None or \
                    not isinstance(value, dict):
                     labels[label] = value
