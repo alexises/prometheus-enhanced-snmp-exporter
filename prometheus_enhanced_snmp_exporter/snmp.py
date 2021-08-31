@@ -143,6 +143,25 @@ class SNMPQuerier(object):
             logger.exception('errer when fetching oid: %s', e)
             return None
 
+    def _update_template_label(self, host_config, module_name, template_group_name, metric):
+        #host_name
+        community = host_config.community
+        version = host_config.version
+        hostname = host_config.hostname
+        #metrics
+        metric_name = metric.name
+        metric_type = metric.type
+        oid = metric.oid
+        
+        logger.info('update template label for %s: %s', hostname, metric_name)
+        output = self.query(oid, hostname, community, version, metric_type)
+        logger.debug(output)
+        if metric_type == 'get':
+            self._template_storage.set_label(hostname, module_name, template_group_name, output)
+        else:
+            for key, val in output.items():
+                self._template_storage.set_label(hostname, module_name, template_group_name, val, key)
+
 
     def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
         #host_name
@@ -153,15 +172,18 @@ class SNMPQuerier(object):
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
-        action = metric.action
-        logger.info('update label for %s: %s', hostname, metric_name)
-        output = self.query(oid, hostname, community, version, metric_type)
-        logger.debug(output)
-        if metric_type == 'get':
-            self._storage.set_label(hostname, module_name, label_group_name, label_name, output)
-        else:
-            for key, val in output.items():
-                self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
+
+        #here !
+        #resolve community
+        for community, label_name, label_value in self._template_storage.resolve_community(hostname, module, label_group, template, community):
+            logger.info('update label for %s: %s', hostname, metric_name)
+            output = self.query(oid, hostname, community, version, metric_type)
+            logger.debug(output)
+            if metric_type == 'get':
+                self._storage.set_label(hostname, module_name, label_group_name, label_name, output)
+            else:
+                for key, val in output.items():
+                    self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
              
     
     def _update_metric(self, host_config, module_name, metric):
@@ -173,19 +195,33 @@ class SNMPQuerier(object):
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
-        action = metric.action
 
         output = self.query(oid, hostname, community, version, metric_type)
         
         logger.debug(output)
         #now we need to resolve labels
-        if metric_type == 'get':
-            labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
-            self._metrics.update_metric(metric_name, labels, output)
-        else:
-            for output_index, output_value in output.items():
-                labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)
-                self._metrics.update_metric(metric_name, labels, output_value)
+        for community, label_name, label_value in self._template_storage.resolve_community(hostname, module, label_group, template, community):
+            if metric_type == 'get':
+                labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
+                labels[label_name] = label_value
+                self._metrics.update_metric(metric_name, labels, output)
+            else:
+                for output_index, output_value in output.items():
+                    labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)
+                    labels[label_name] = label_value
+                    self._metrics.update_metric(metric_name, labels, output_value)
+
+    def warmup_template_cache(self, max_threads, scheduler):
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            futurs = []
+            for host_config in self._config.hosts:
+                for module_name, module_data in host_config.items()
+                    for template_group_name, template_group_date in module.template_label.items():
+                        futur = executor.submit(self._update_template_label, host_config, module_name, template_group_name, template_group_data)
+                        futurs.append(futur)
+                        scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name, template_group_name, template_group_data)
+            for futur as as_completed(futurs):
+                pass
 
     def warmup_label_cache(self, max_threads, scheduler):
         with ThreadPoolExecutor(max_workers=max_threads) as executor:

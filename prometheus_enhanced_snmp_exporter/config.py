@@ -168,8 +168,17 @@ class ModuleConfiguration(object):
 
     def __init__(self, config, module_name):
         self.labels_group = {}
+        self.template_label = {}
         self.metrics = []
         every = config.get('every', '60s')
+        try:
+            for template_label_name, template_label in config['template_labels'].items():
+                label_every = template_label.get('every', every)
+                query_type = self._get_type(template_label)
+                self.template_labelp[template_label_name] = OIDConfiguration(temmplate_label_name, template_label['mapping'], label_every, query_type, 'templated_label')
+        except ValueError as e:
+            logger.error('templated_label attibute should be a dict')
+            raise BadConfigurationException()
         try:
             for label_group_name, label_group in config['labels'].items():
                 label_every = label_group.get('every', every)
