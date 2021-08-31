@@ -18,6 +18,7 @@ from threading import Lock
 
 logger = logging.getLogger(__name__)
 
+
 class TemplateStorage(object):
     def __init__(self):
         self._labels = {}
@@ -26,24 +27,24 @@ class TemplateStorage(object):
     def set_label(self, hostname, module, label_group, label_data, walk_idx=None):
         self._lock_init.acquire()
         if hostname not in self._labels:
-             logger.debug('init templated hostname %s', hostname)
-             self._labels[hostname] = {}
+            logger.debug('init templated hostname %s', hostname)
+            self._labels[hostname] = {}
         if module not in self._labels[hostname]:
-             logger.debug('init templated module %s for hostname %s', hostname, module)
-             self._labels[hostname][module] = {}
+            logger.debug('init templated module %s for hostname %s', hostname, module)
+            self._labels[hostname][module] = {}
         if label_group not in self._labels[hostname][module] and \
            walk_idx is not None:
-             logger.debug('init templated label_group for hostname and module %s %s %s', label_group, hostname, module)
-             self._labels[hostname][module][label_group] = {}
+            logger.debug('init templated label_group for hostname and module %s %s %s', label_group, hostname, module)
+            self._labels[hostname][module][label_group] = {}
         self._lock_init.release()
         if walk_idx is not None:
-             self._labels[hostname][module][label_group][walk_idx] = label_data
-             logger.debug('update label [%s:%s] %s[%s] = %s',
-                          hostname, module, label_group, walk_idx, label_data)
+            self._labels[hostname][module][label_group][walk_idx] = label_data
+            logger.debug('update label [%s:%s] %s[%s] = %s',
+                         hostname, module, label_group, walk_idx, label_data)
         else:
-             self._labels[hostname][module][label_group] = label_data
-             logger.debug('update label [%s,%s] %s = %s',
-                          hostname, module, label_group, label_data)
+            self._labels[hostname][module][label_group] = label_data
+            logger.debug('update label [%s,%s] %s = %s',
+                         hostname, module, label_group, label_data)
 
     def resolve_community(self, hostname, module, label_group, template, community):
         if hostname not in self._labels:
@@ -74,28 +75,28 @@ class LabelStorage(object):
         template_str = "{}={}".format(template_name, template_data)
         self._lock_init.acquire()
         if hostname not in self._labels:
-             logger.debug('init hostname %s', hostname)
-             self._labels[hostname] = {}
+            logger.debug('init hostname %s', hostname)
+            self._labels[hostname] = {}
         if module not in self._labels[hostname]:
-             logger.debug('init module %s for hostname %s', hostname, module)
-             self._labels[hostname][module] = {}
+            logger.debug('init module %s for hostname %s', hostname, module)
+            self._labels[hostname][module] = {}
         if label_group not in self._labels[hostname][module]:
-             logger.debug('init label_group for hostname and module %s %s %s', label_group, hostname, module)
-             self._labels[hostname][module][label_group] = {}
+            logger.debug('init label_group for hostname and module %s %s %s', label_group, hostname, module)
+            self._labels[hostname][module][label_group] = {}
         if label_name not in self._labels[hostname][module][label_group]:
-             self._labels[hostname][module][label_group][label_name] = {}
-        if template_str not in  self._labels[hostname][module][label_group]  and \
+            self._labels[hostname][module][label_group][label_name] = {}
+        if template_str not in self._labels[hostname][module][label_group] and \
            walk_idx is not None:
-             self._labels[hostname][module][label_group][label_name][template_str] = {}
+            self._labels[hostname][module][label_group][label_name][template_str] = {}
         self._lock_init.release()
         if walk_idx is not None:
-             self._labels[hostname][module][label_group][label_name][template_str][walk_idx] = label_data
-             logger.debug('update label [%s:%s] %s:%s[%s] = %s', 
-                          hostname, module, label_group, label_name, walk_idx, label_data)
+            self._labels[hostname][module][label_group][label_name][template_str][walk_idx] = label_data
+            logger.debug('update label [%s:%s] %s:%s[%s] = %s',
+                         hostname, module, label_group, label_name, walk_idx, label_data)
         else:
-             self._labels[hostname][module][label_group][label_name][template_str] = label_data
-             logger.debug('update label [%s,%s] %s:%s = %s', 
-                          hostname, module, label_group, label_name, label_data)
+            self._labels[hostname][module][label_group][label_name][template_str] = label_data
+            logger.debug('update label [%s,%s] %s:%s = %s',
+                         hostname, module, label_group, label_name, label_data)
 
     def resolve_label(self, hostname, module, label_group, template_name, template_data, walk_idx=None):
         template_str = "{}={}".format(template_name, template_data)
@@ -103,7 +104,7 @@ class LabelStorage(object):
             logger.warning('no label available for %s', hostname)
             return {}
         if isinstance(label_group, str):
-            label_group = [ label_group ]
+            label_group = [label_group]
         labels = {}
         for group in label_group:
             group_component = group.split('.')
@@ -122,4 +123,3 @@ class LabelStorage(object):
                     labels[label] = value[walk_idx]
         return labels
 
-   

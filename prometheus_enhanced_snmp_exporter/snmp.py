@@ -15,9 +15,9 @@
 
 from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmd, bulkCmd, ContextData
 from pysnmp.error import PySnmpError
-from pysnmp.smi.error import SmiError
 from pysnmp.smi.view import MibViewController
-from pysnmp.proto.rfc1902 import Null, Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, OctetString, Opaque, IpAddress, Bits, ObjectIdentity
+from pysnmp.proto.rfc1902 import Null, Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, \
+                                 OctetString, Opaque, IpAddress, Bits, ObjectIdentity
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
@@ -91,7 +91,7 @@ class SNMPQuerier(object):
             logger.debug('test3')
             mib_obj = ObjectIdentity(mib)
             mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
-            mib_obj.resolveWithMib(self.mib_controller) #force exception raising
+            mib_obj.resolveWithMib(self.mib_controller)  # force exception raising
             return mib_obj
         except Exception as e:
             logger.error("can't resolv oid into object: %s", mib)
@@ -120,7 +120,7 @@ class SNMPQuerier(object):
                 raise ValueError('unknow method, should be get or walk')
             out = []
             for error_indicator, error_status, error_index, output in \
-                snmp_method(SnmpEngine(), community, hostname_obj, ContextData(), *positionals_args, **extra_args):
+            snmp_method(SnmpEngine(), community, hostname_obj, ContextData(), *positionals_args, **extra_args):
                 if error_indicator is not None:
                     logger.error('snmp error while fetching %s : %s', oid, error_indicator)
                     continue
@@ -153,7 +153,7 @@ class SNMPQuerier(object):
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
-        
+
         logger.info('update template label for %s: %s', hostname, metric_name)
         output = self.query(oid, hostname, community, version, metric_type)
         logger.debug(output)
@@ -162,7 +162,6 @@ class SNMPQuerier(object):
         else:
             for key, val in output.items():
                 self._template_storage.set_label(hostname, module_name, template_group_name, val, key)
-
 
     def _update_label(self, host_config, module_name, module_config, label_group_name, label_name, metric):
         # host_name
@@ -188,7 +187,7 @@ class SNMPQuerier(object):
             else:
                 for key, val in output.items():
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
-    
+
     def _update_metric(self, host_config, module_name, module_config, metric):
         # host_name
         community = host_config.community
@@ -206,7 +205,8 @@ class SNMPQuerier(object):
         
         logger.debug(output)
         # now we need to resolve labels
-        for community, label_name, label_value in self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
+        for community, label_name, label_value in \
+        self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             if metric_type == 'get':
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
                 labels[label_name] = label_value
@@ -223,7 +223,8 @@ class SNMPQuerier(object):
             for host_config in self._config.hosts:
                 for module_name, module_data in host_config.items():
                     for template_group_name, template_group_data in module_data.template_label.items():
-                        futur = executor.submit(self._update_template_label, host_config, module_name, template_group_name, template_group_data)
+                        futur = executor.submit(self._update_template_label, host_config, module_name, \
+                        template_group_name, template_group_data)
                         futurs.append(futur)
                         scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name, template_group_name, template_group_data)
             for futur in as_completed(futurs):
@@ -236,12 +237,13 @@ class SNMPQuerier(object):
                 for module_name, module_data in host_config.items():
                     for label_group_name, label_group_data in module_data.labels_group.items():
                         for label_name, label_data in label_group_data.items():
-                            futur = executor.submit(self._update_label, host_config, module_name, module_data, label_group_name, label_name, label_data)
+                            futur = executor.submit(self._update_label, host_config, module_name, module_data,
+                                                    label_group_name, label_name, label_data)
                             futurs.append(futur)
-                            scheduler.add_job(self._update_label, label_data.every, host_config, module_name, module_data, label_group_name, label_name, label_data)
+                            scheduler.add_job(self._update_label, label_data.every, host_config, module_name,
+                                              module_data, label_group_name, label_name, label_data)
             for futur in as_completed(futurs):
                 pass
-
 
     def warmup_metrics(self, max_threads, scheduler):
         with ThreadPoolExecutor(max_workers=max_threads) as executor:

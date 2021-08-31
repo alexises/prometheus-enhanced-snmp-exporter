@@ -88,7 +88,7 @@ class HostConfiguration(object):
         except TypeError:
             logger.error('config element modules should be a list')
             raise BadConfigurationException()
-    
+
     def _resolve_module(self, modules):
         for module_name in self._modules_unresolved:
             logger.debug('resolving %s', module_name)
@@ -116,7 +116,7 @@ class HostsConfiguration(object):
         try:
             for host in config:
                 self._hosts.append(HostConfiguration(host))
-        except TypeError as e:
+        except TypeError:
             raise BadConfigurationException('hosts attribute should be a lists')
 
     def __getitem__(self, key):
@@ -132,7 +132,7 @@ class HostsConfiguration(object):
 class OIDConfiguration(object):
     def __init__(self, name, config, default_every, query_type, action):
         self.action = action
-        self.name = name 
+        self.name = name
         self.type = query_type
         if isinstance(config, str):
             self.oid = config
@@ -152,7 +152,7 @@ class OIDConfiguration(object):
             raise BadConfigurationException()
 
     def __repr__(self):
-       return '{}->{} [{}s]'.format(self.name, self.oid, self.every)
+        return '{}->{} [{}s]'.format(self.name, self.oid, self.every)
 
 
 class MetricOIDConfiguration(OIDConfiguration):
@@ -167,8 +167,8 @@ class ModuleConfiguration(object):
         try:
             query_type = config['type']
             if query_type not in ['get', 'walk', "community_walk"]:
-               logger.error('type attribut should be "get", "walk" or "community_walk"')
-               raise BadConfigurationException()
+                 logger.error('type attribut should be "get", "walk" or "community_walk"')
+                 raise BadConfigurationException()
             return query_type
         except KeyError:
             logger.error('type attribut absent')
@@ -179,14 +179,22 @@ class ModuleConfiguration(object):
         self.template_label = {}
         self.metrics = []
         every = config.get('every', '60s')
+        self._init_template_labels(config, module_name)
+        self._init_labels(config, module_name)
+        self._init_metrics(config, module_name)
+
+    def _init_template_labels(self, config, module_name):
         try:
             for template_label_name, template_label in config['template_labels'].items():
                 label_every = template_label.get('every', every)
                 query_type = self._get_type(template_label)
-                self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'], label_every, query_type, 'templated_label')
+                self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'],
+                                                                            label_every, query_type, 'templated_label')
         except ValueError:
             logger.error('templated_label attibute should be a dict')
             raise BadConfigurationException()
+
+    def _init_labels(self, config, module_name):
         try:
             for label_group_name, label_group in config['labels'].items():
                 label_every = label_group.get('every', every)
@@ -194,16 +202,20 @@ class ModuleConfiguration(object):
                 logger.debug('parse label list %s', label_group)
                 self.labels_group[label_group_name] = {}
                 for label_name, label_data in label_group['mappings'].items():
-                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data, label_every, query_type, 'label')
+                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data,
+                                                                                       label_every, query_type, 'label')
         except ValueError:
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()
+
+    def _init_metrics(self, config, module_name):
         try:
             for metric in config['metrics']:
                 metric_every = metric.get('every', every)
                 query_type = self._get_type(metric)
                 for metric_name, metric_data in metric['mappings'].items():
-                    metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every, query_type, 'metrics', metric.get('append_tags', []))
+                    metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every,
+                                                        query_type, 'metrics', metric.get('append_tags', []))
                     self.metrics.append(metric_obj)
         except ValueError:
             logger.error('metric attribute should be a list')
