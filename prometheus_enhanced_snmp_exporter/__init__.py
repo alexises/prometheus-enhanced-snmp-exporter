@@ -26,15 +26,17 @@ from .scheduler import JobScheduler
 
 logger = logging.getLogger(__name__)
 
+
 def get_args(handler):
     ''' argparse : parse std input '''
     parser = argparse.ArgumentParser(description='Prometheus SNMP exporter')
     parser.add_argument('-f', '--filename', help='configuration file to parse', default='snmp.yaml', required=False)
-    parser.add_argument('-l', '--log-level', help='log level', default='info', 
+    parser.add_argument('-l', '--log-level', help='log level', default='info',
                         choices=['debug', 'info', 'warning', 'erro'], required=False)
     parser.add_argument('--listen', help='listen address', default=':9100', required=False)
     parser.add_argument('--path', help='path used to expose metric', default='/metrics', required=False)
-    parser.add_argument('-c', '--check', help="simply check config and exit", action='store_true', default=False, required=False)
+    parser.add_argument('-c', '--check', help="simply check config and exit", action='store_true', default=False,
+                        required=False)
     parser.add_argument('-M', '--max-threads', help="maximum number of thread used for fetching", default=1, type=int)
     args = parser.parse_args()
 

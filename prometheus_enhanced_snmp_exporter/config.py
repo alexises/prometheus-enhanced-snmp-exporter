@@ -179,11 +179,11 @@ class ModuleConfiguration(object):
         self.template_label = {}
         self.metrics = []
         every = config.get('every', '60s')
-        self._init_template_labels(config, module_name)
-        self._init_labels(config, module_name)
-        self._init_metrics(config, module_name)
+        self._init_template_labels(config, module_name, every)
+        self._init_labels(config, module_name, every)
+        self._init_metrics(config, module_name, every)
 
-    def _init_template_labels(self, config, module_name):
+    def _init_template_labels(self, config, module_name, every):
         try:
             for template_label_name, template_label in config['template_labels'].items():
                 label_every = template_label.get('every', every)
@@ -194,7 +194,7 @@ class ModuleConfiguration(object):
             logger.error('templated_label attibute should be a dict')
             raise BadConfigurationException()
 
-    def _init_labels(self, config, module_name):
+    def _init_labels(self, config, module_name, every):
         try:
             for label_group_name, label_group in config['labels'].items():
                 label_every = label_group.get('every', every)
@@ -208,7 +208,7 @@ class ModuleConfiguration(object):
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()
 
-    def _init_metrics(self, config, module_name):
+    def _init_metrics(self, config, module_name, every):
         try:
             for metric in config['metrics']:
                 metric_every = metric.get('every', every)
