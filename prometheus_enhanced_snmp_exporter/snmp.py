@@ -13,15 +13,16 @@
 # You should have received a copy of the GNU General Public License
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
-from pysnmp.hlapi import *
+from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType
 from pysnmp.error import PySnmpError
 from pysnmp.smi.error import SmiError
 from pysnmp.smi.view import MibViewController
-from pysnmp.proto.rfc1902 import *
+from pysnmp.proto.rfc1902 import Null, Integger32, Integer, Counter32, Gauge32, Unsigned32, TimetTick, Counter64, OctetString, Opaque, IpAddress, Bits, ObjectIdentity
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 def _snmp_obj_to_str(data, mib_controller):
     if isinstance(data, Null):
@@ -60,12 +61,12 @@ def _snmp_obj_to_str(data, mib_controller):
 
 class SNMPQuerier(object):
     def __init__(self, config, storage, template_storage, metrics):
-       self._config = config
-       self._storage = storage
-       self._template_storage = template_storage
-       self._engine = SnmpEngine()
-       self._metrics = metrics
-       self.mib_controller = MibViewController(self._engine.getMibBuilder())
+        self._config = config
+        self._storage = storage
+        self._template_storage = template_storage
+        self._engine = SnmpEngine()
+        self._metrics = metrics
+        self.mib_controller = MibViewController(self._engine.getMibBuilder())
 
     def _mibstr_to_objstr(self, mib):
         try:
@@ -108,12 +109,12 @@ class SNMPQuerier(object):
             oid_obj = ObjectType(self._mibstr_to_objstr(oid))
             if query_type == 'get':
                 snmp_method = getCmd
-                positionals_args = [ oid_obj ]
+                positionals_args = [oid_obj]
                 extra_args = {}
             elif query_type == 'walk':
                 snmp_method = bulkCmd
-                positionals_args = [ 0, 25, oid_obj ]
-                extra_args = { 'lexicographicMode': False }
+                positionals_args = [0, 25, oid_obj]
+                extra_args = {'lexicographicMode': False}
             else:
                 logger.error('unknow method %s, should be get or walk', query_type)
                 raise ValueError('unknow method, should be get or walk')
@@ -121,7 +122,7 @@ class SNMPQuerier(object):
             for error_indicator, error_status, error_index, output in \
                 snmp_method(SnmpEngine(), community, hostname_obj, ContextData(), *positionals_args, **extra_args):
                 if error_indicator is not None:
-                    logger.error('snmp error while fetching %s : %s', oid , error_indicator)
+                    logger.error('snmp error while fetching %s : %s', oid, error_indicator)
                     continue
                 obj = output[0]
                 out.append(obj)
@@ -137,18 +138,18 @@ class SNMPQuerier(object):
                     out_dict[key] = _snmp_obj_to_str(i[1], self.mib_controller)
                 logger.debug('output data: %s', out_dict)
                 return out_dict
-                    
+
         except PySnmpError as e:
             logger.debug('hostname: %s, oid: %s', hostname, oid)
             logger.exception('errer when fetching oid: %s', e)
             return None
 
     def _update_template_label(self, host_config, module_name, template_group_name, metric):
-        #host_name
+        # host_name
         community = host_config.community
         version = host_config.version
         hostname = host_config.hostname
-        #metrics
+        # metrics
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
@@ -164,20 +165,21 @@ class SNMPQuerier(object):
 
 
     def _update_label(self, host_config, module_name, module_config, label_group_name, label_name, metric):
-        #host_name
+        # host_name
         community = host_config.community
         version = host_config.version
         hostname = host_config.hostname
-        #metrics
+        # metrics
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
-        #community_resolution
+        # community_resolution
         template_name = module_config.template_label
         template = host_config.modules[module_name].template_labels.get(template_name, {}).get(community_template, None)
 
-        #resolve community
-        for community, label_name, label_value in self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
+        # resolve community
+        for community, label_name, label_value in \
+                self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
             output = self.query(oid, hostname, community, version, metric_type)
             logger.debug(output)
@@ -186,25 +188,24 @@ class SNMPQuerier(object):
             else:
                 for key, val in output.items():
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
-             
     
     def _update_metric(self, host_config, module_name, module_config, metric):
-        #host_name
+        # host_name
         community = host_config.community
         version = host_config.version
         hostname = host_config.hostname
-        #metrics
+        # metrics
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
-        #community_resolution
+        # community_resolution
         template_name = module_config.template_label
         template = host_config.modules[module_name].template_labels.get(template_name, {}).get(community_template, None)
 
         output = self.query(oid, hostname, community, version, metric_type)
         
         logger.debug(output)
-        #now we need to resolve labels
+        # now we need to resolve labels
         for community, label_name, label_value in self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             if metric_type == 'get':
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
@@ -248,8 +249,8 @@ class SNMPQuerier(object):
             for host_config in self._config.hosts:
                 for module_name, module_data in host_config.items():
                     for metric in module_data.metrics:
-                         futur = executor.submit(self._update_metric, host_config, module_name, module_data, metric)
-                         futurs.append(futur)
-                         scheduler.add_job(self._update_metric, metric.every, host_config, module_name, module_data, metric)
+                        futur = executor.submit(self._update_metric, host_config, module_name, module_data, metric)
+                        futurs.append(futur)
+                        scheduler.add_job(self._update_metric, metric.every, host_config, module_name, module_data, metric)
             for futur in as_completed(futurs):
                 pass

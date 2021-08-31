@@ -49,6 +49,7 @@ def get_args(handler):
 
     return args
 
+
 def init_logger():
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
@@ -64,6 +65,7 @@ def init_logger():
     root.addHandler(handler)
 
     return handler
+
 
 def main():
     handler = init_logger()
@@ -100,6 +102,7 @@ def main():
     metrics.start_http_server()
     logger.info('and finally, start scheduler')
     scheduler.start_scheduler()
+
 
 if __name__ == '__main__':
     main()

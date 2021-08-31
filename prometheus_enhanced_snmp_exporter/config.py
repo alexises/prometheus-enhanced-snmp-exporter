@@ -15,11 +15,13 @@
 
 import yaml
 import yaml.scanner
-import logging 
+import logging
 logger = logging.getLogger(__name__)
+
 
 class BadConfigurationException(Exception):
     pass
+
 
 __timerange_multiplier = {
   's': 1,
@@ -30,6 +32,7 @@ __timerange_multiplier = {
   'M': 2592000,
   'y': 31536000,
 }
+
 
 def timerange_to_second(timerange):
     try:
@@ -43,6 +46,7 @@ def timerange_to_second(timerange):
         logger.error("%s don't appear to be a valid timerange", timerange)
         logger.debug("stacktrace: %s", e)
         raise e
+
 
 def parse_config(filename):
     try:
@@ -59,30 +63,31 @@ def parse_config(filename):
     config = ParserConfiguration(cfg)
     return config
 
+
 class HostConfiguration(object):
     def __init__(self, config):
-       try:
-           self.hostname = config['hostname']
-       except KeyError as e:
-           logger.error('hostname is required')
-           raise BadConfigurationException()
-       self.community = config.get('community', 'public')
-       self.version = config.get('version', '1')
-       try:
-           #here, we store as is, we will perform metric reconciliation
-           #after the full parsing
-           self._modules_unresolved = []
-           self._modules = {}
-           self._labels = []
-           self._metrics = []
-           for module in config['modules']:
-               self._modules_unresolved.append(module)
-       except KeyError as e:
-           logger.error('config modules is not present')
-           raise BadConfigurationException()
-       except TypeError as e:
-           logger.error('config element modules should be a list')
-           raise BadConfigurationException()
+        try:
+            self.hostname = config['hostname']
+        except KeyError:
+            logger.error('hostname is required')
+            raise BadConfigurationException()
+        self.community = config.get('community', 'public')
+        self.version = config.get('version', '1')
+        try:
+            # here, we store as is, we will perform metric reconciliation
+            # after the full parsing
+            self._modules_unresolved = []
+            self._modules = {}
+            self._labels = []
+            self._metrics = []
+            for module in config['modules']:
+                self._modules_unresolved.append(module)
+        except KeyError:
+            logger.error('config modules is not present')
+            raise BadConfigurationException()
+        except TypeError:
+            logger.error('config element modules should be a list')
+            raise BadConfigurationException()
     
     def _resolve_module(self, modules):
         for module_name in self._modules_unresolved:
@@ -99,10 +104,11 @@ class HostConfiguration(object):
         return self._modules.items()
 
     def hes_key(self, key):
-        return self._modules.has_key(key)
+        return key in self._modules
 
     def __repr__(self):
         return 'host:' + self.hostname
+
 
 class HostsConfiguration(object):
     def __init__(self, config):
@@ -120,7 +126,8 @@ class HostsConfiguration(object):
         return self._hosts.items()
 
     def hes_key(self, key):
-        return self._hosts.has_key(key)
+        return key in self._hosts
+
 
 class OIDConfiguration(object):
     def __init__(self, name, config, default_every, query_type, action):
@@ -147,6 +154,7 @@ class OIDConfiguration(object):
     def __repr__(self):
        return '{}->{} [{}s]'.format(self.name, self.oid, self.every)
 
+
 class MetricOIDConfiguration(OIDConfiguration):
     def __init__(self, name, config, default_every, query_type, action, labels):
         OIDConfiguration.__init__(self, name, config, default_every, query_type, action)
@@ -162,7 +170,7 @@ class ModuleConfiguration(object):
                logger.error('type attribut should be "get", "walk" or "community_walk"')
                raise BadConfigurationException()
             return query_type
-        except KeyError as e:
+        except KeyError:
             logger.error('type attribut absent')
             raise BadConfigurationException()
 
@@ -176,7 +184,7 @@ class ModuleConfiguration(object):
                 label_every = template_label.get('every', every)
                 query_type = self._get_type(template_label)
                 self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'], label_every, query_type, 'templated_label')
-        except ValueError as e:
+        except ValueError:
             logger.error('templated_label attibute should be a dict')
             raise BadConfigurationException()
         try:
@@ -187,7 +195,7 @@ class ModuleConfiguration(object):
                 self.labels_group[label_group_name] = {}
                 for label_name, label_data in label_group['mappings'].items():
                     self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data, label_every, query_type, 'label')
-        except ValueError as e:
+        except ValueError:
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()
         try:
@@ -201,13 +209,14 @@ class ModuleConfiguration(object):
             logger.error('metric attribute should be a list')
             raise BadConfigurationException()
 
+
 class ModulesConfiguration(object):
     def __init__(self, config):
         self._modules = {}
         try:
             for module_name, module_data in config.items():
                 self._modules[module_name] = ModuleConfiguration(module_data, module_name)
-        except TypeError as e:
+        except TypeError:
             logger.error('modules key should be a dict')
             logger.exception('detail')
             raise BadConfigurationException()
@@ -219,10 +228,11 @@ class ModulesConfiguration(object):
         return self._modules.items()
 
     def hes_key(self, key):
-        return self._modules.has_key(key)
+        return key in self._modules
 
     def keys(self):
         return self._modules.keys()
+
 
 class ParserConfiguration(object):
     def __init__(self, config):

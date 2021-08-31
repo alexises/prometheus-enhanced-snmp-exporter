@@ -45,11 +45,11 @@ class PrometheusMetric():
         self._labels[label_str]['timestamp'] = int(time.time() * 1000)
 
     def metric_print(self):
-        #first print header information
+        # first print header information
         out = "#TYPE {} {}\n#HELP {} {}\n".format(self._name, self._type, self._name, self._description)
         
-        #next print metric lines
-        #to deal with thread safety we will avoid generator
+        # next print metric lines
+        # to deal with thread safety we will avoid generator
         for label_str in list(sorted(self._labels.keys())):
             label_data = self._labels[label_str]
             out += "{}{{{}}} {} [{}]\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
@@ -59,10 +59,11 @@ class PrometheusMetric():
 class WSGIServer_IPv6(WSGIServer):
     address_family = socket.AF_INET6
 
-#Here we do our own class, we can't really rely on
-#prometheus_client that is more intended to add metric
-#on source code and not external metrics like this exporter
-#provides
+
+# Here we do our own class, we can't really rely on
+# prometheus_client that is more intended to add metric
+# on source code and not external metrics like this exporter
+# provides
 class PrometheusMetricStorage(threading.Thread):
     def __init__(self, hostname, uri):
         threading.Thread.__init__(self)
@@ -101,7 +102,7 @@ class PrometheusMetricStorage(threading.Thread):
         hostname = hostname_component[0]
         port = int(hostname_component[1])
         if hostname == "":
-             hostname = "::"
+            hostname = "::"
 
         logger.info('bind to %s %s', hostname, port)
         self._server = make_server(hostname, port, app, WSGIServer_IPv6)
