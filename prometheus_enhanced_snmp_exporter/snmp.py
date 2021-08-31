@@ -82,7 +82,7 @@ class SNMPQuerier(object):
                         out[i] = int(out[i])
                     except ValueError:
                         pass
-                       
+
                 logger.debug('mib component : %s', out)
                 mib_obj = ObjectIdentity(*out)
                 mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
@@ -119,8 +119,9 @@ class SNMPQuerier(object):
                 logger.error('unknow method %s, should be get or walk', query_type)
                 raise ValueError('unknow method, should be get or walk')
             out = []
-            for error_indicator, error_status, error_index, output in \
-            snmp_method(SnmpEngine(), community, hostname_obj, ContextData(), *positionals_args, **extra_args):
+            for error_indicator, error_status, error_index, output in snmp_method(SnmpEngine(), community, hostname_obj,
+                                                                                  ContextData(), *positionals_args, 
+                                                                                  **extra_args):
                 if error_indicator is not None:
                     logger.error('snmp error while fetching %s : %s', oid, error_indicator)
                     continue
@@ -202,11 +203,11 @@ class SNMPQuerier(object):
         template = host_config.modules[module_name].template_labels.get(template_name, {}).get("community_template", None)
 
         output = self.query(oid, hostname, community, version, metric_type)
-        
+
         logger.debug(output)
         # now we need to resolve labels
-        for community, label_name, label_value in \
-        self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
+        for community, label_name, label_value in self._template_storage.resolve_community(hostname, module_name,
+                                                                                           template_name, template, community):
             if metric_type == 'get':
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
                 labels[label_name] = label_value

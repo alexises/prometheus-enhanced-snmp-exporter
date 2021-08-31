@@ -167,8 +167,8 @@ class ModuleConfiguration(object):
         try:
             query_type = config['type']
             if query_type not in ['get', 'walk', "community_walk"]:
-                 logger.error('type attribut should be "get", "walk" or "community_walk"')
-                 raise BadConfigurationException()
+                logger.error('type attribut should be "get", "walk" or "community_walk"')
+                raise BadConfigurationException()
             return query_type
         except KeyError:
             logger.error('type attribut absent')
@@ -254,10 +254,10 @@ class ParserConfiguration(object):
             logger.debug('hosts parsed')
             self.modules = ModulesConfiguration(config['modules'])
             logger.debug('modules parsed')
-            self.descriptions = config['description'] 
+            self.descriptions = config['description']
         except KeyError as e:
             logger.error('section {} not present, config useless'.format(e.args[0]))
             raise BadConfigurationException()
-        
+
         for host in self.hosts:
             host._resolve_module(self.modules)

@@ -23,12 +23,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def label_to_str(labels):
     labels_str = []
     for label_name, label_value in sorted(labels.items()):
         label_str = '{}="{}"'.format(label_name, label_value.replace('"', '\\"'))
         labels_str.append(label_str)
     return ', '.join(labels_str)
+
 
 class PrometheusMetric():
     def __init__(self, name, metric_type, description):
@@ -41,13 +43,13 @@ class PrometheusMetric():
         label_str = label_to_str(labels)
         if label_str not in self._labels:
             self._labels[label_str] = {}
-        self._labels[label_str]['metric']  = values
+        self._labels[label_str]['metric'] = values
         self._labels[label_str]['timestamp'] = int(time.time() * 1000)
 
     def metric_print(self):
         # first print header information
         out = "#TYPE {} {}\n#HELP {} {}\n".format(self._name, self._type, self._name, self._description)
-        
+
         # next print metric lines
         # to deal with thread safety we will avoid generator
         for label_str in list(sorted(self._labels.keys())):
