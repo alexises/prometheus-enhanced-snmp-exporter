@@ -1,0 +1,89 @@
+type: object
+properties:
+  hosts:
+    type: array
+    uniqueItems: true
+    items: 
+      type: objects
+      required:
+        - hostname
+        - version
+        - modules
+      properties:
+        hostname:
+          type: string
+          format: hostname
+        version:
+          type: string
+          enum: 
+            - v1
+            - v2
+            - v2c
+            - v3
+        community:
+          type: string
+          default: public
+        modules:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items:
+            type: string
+  modules:
+    type: object:
+    minProperties: 1
+    patternProperties:
+      ".+":
+        type: object
+        properties:
+          template_labels:
+            type: object
+            patternProperties:
+              .+: 
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: 
+                      - get
+                      - walk
+                  every:
+                    type: string
+                    pattern: '^[0-9]+[smhdwMy]$'
+                    default: 1m
+                  community_template:
+                    type: string
+                    default: "{{ community }}@{{ template }}"
+                  mapping:
+                    type: string
+                required:
+                  - type
+                  - mapping
+            default: {}
+          labels:
+            type: object
+            patternProperties:
+            default: {}
+          metrics:
+            type: list
+            minItems: 1
+            items: ***
+        required:
+          - metrics
+  description:
+    type: object
+    minProperties: 1
+    patternProperties:
+      ".+": 
+        type: object
+        properties: 
+          type:
+            type: string
+            enum: 
+              - counter
+              - gauge
+              - histogram
+              - summary
+          description:
+            type: string
+        required: ["type", "description"]
