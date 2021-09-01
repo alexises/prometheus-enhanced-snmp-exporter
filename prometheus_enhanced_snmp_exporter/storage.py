@@ -61,6 +61,7 @@ class TemplateStorage(object):
             labels = [labels]
         out = []
         for label in labels:
+            logger.debug('community "%s" template "%s"', community, label)
             community_tpl = template.format(community=community, template=label)
             out.append((community_tpl, label_group, label))
         return out

@@ -102,6 +102,7 @@ class SNMPQuerier(object):
             raise e
 
     def query(self, oid, hostname, community, version, query_type='get'):
+        logger.debug('check for OID %s on %s with %s', oid, hostname, community)
         if version == 'v2c' or version == 2:
             mpmodel = 1
         else:
@@ -132,6 +133,7 @@ class SNMPQuerier(object):
                 out.append(obj)
                 logger.debug('query_result: %s', str(output[0]))
             if len(out) == 1:
+                logger.debug('input output data: %s', out[0][1])
                 sanitized_output = _snmp_obj_to_str(out[0][1], self.mib_controller)
                 logger.debug('output data: %s', sanitized_output)
                 return sanitized_output
@@ -180,6 +182,7 @@ class SNMPQuerier(object):
         template_name = metric.template_name
         template = metric.community_template
 
+        logger.debug('template_name %s and template %s', template_name, template)
         # resolve community
         for community, label_name, label_value in \
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
