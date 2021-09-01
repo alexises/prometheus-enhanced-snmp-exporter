@@ -16,8 +16,10 @@
 from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmd, bulkCmd, ContextData
 from pysnmp.error import PySnmpError
 from pysnmp.smi.view import MibViewController
-from pysnmp.proto.rfc1902 import Null, Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, \
-                                 OctetString, Opaque, IpAddress, Bits, ObjectIdentity
+from pysnmp.smi.rfc1902 import ObjectIdentity
+from pysnmp.proto.rfc1902 import Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, \
+                                 OctetString, Opaque, IpAddress, Bits
+from pyasn1.type.univ import Null
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
@@ -86,6 +88,7 @@ class SNMPQuerier(object):
                 logger.debug('mib component : %s', out)
                 mib_obj = ObjectIdentity(*out)
                 mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
+                mib_obj.addAsn1MibSource('file://~/.snmp/mibs')
                 mib_obj.resolveWithMib(self.mib_controller)
                 return mib_obj
             logger.debug('test3')
@@ -164,7 +167,7 @@ class SNMPQuerier(object):
             for key, val in output.items():
                 self._template_storage.set_label(hostname, module_name, template_group_name, val, key)
 
-    def _update_label(self, host_config, module_name, module_config, label_group_name, label_name, metric):
+    def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -174,8 +177,8 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         # community_resolution
-        template_name = module_config.template_label
-        template = host_config.modules[module_name].template_labels.get(template_name, {}).get("community_template", None)
+        template_name = metric.template_name
+        template = metric.community_template
 
         # resolve community
         for community, label_name, label_value in \
@@ -189,7 +192,7 @@ class SNMPQuerier(object):
                 for key, val in output.items():
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
 
-    def _update_metric(self, host_config, module_name, module_config, metric):
+    def _update_metric(self, host_config, module_name, metric):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -199,8 +202,8 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         # community_resolution
-        template_name = module_config.template_label
-        template = host_config.modules[module_name].template_labels.get(template_name, {}).get("community_template", None)
+        template_name = metric.template_name
+        template = metric.community_template
 
         output = self.query(oid, hostname, community, version, metric_type)
 
@@ -239,11 +242,11 @@ class SNMPQuerier(object):
                 for module_name, module_data in host_config.items():
                     for label_group_name, label_group_data in module_data.labels_group.items():
                         for label_name, label_data in label_group_data.items():
-                            futur = executor.submit(self._update_label, host_config, module_name, module_data,
+                            futur = executor.submit(self._update_label, host_config, module_name,
                                                     label_group_name, label_name, label_data)
                             futurs.append(futur)
                             scheduler.add_job(self._update_label, label_data.every, host_config, module_name,
-                                              module_data, label_group_name, label_name, label_data)
+                                              label_group_name, label_name, label_data)
             for futur in as_completed(futurs):
                 pass
 
@@ -253,8 +256,8 @@ class SNMPQuerier(object):
             for host_config in self._config.hosts:
                 for module_name, module_data in host_config.items():
                     for metric in module_data.metrics:
-                        futur = executor.submit(self._update_metric, host_config, module_name, module_data, metric)
+                        futur = executor.submit(self._update_metric, host_config, module_name, metric)
                         futurs.append(futur)
-                        scheduler.add_job(self._update_metric, metric.every, host_config, module_name, module_data, metric)
+                        scheduler.add_job(self._update_metric, metric.every, host_config, module_name, metric)
             for futur in as_completed(futurs):
                 pass

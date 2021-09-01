@@ -130,10 +130,12 @@ class HostsConfiguration(object):
 
 
 class OIDConfiguration(object):
-    def __init__(self, name, config, default_every, query_type, action):
+    def __init__(self, name, config, default_every, query_type, action, template_name, community_template):
         self.action = action
         self.name = name
         self.type = query_type
+        self.template_name = template_name
+        self.community_template = community_template
         if isinstance(config, str):
             self.oid = config
             self.every = default_every
@@ -156,8 +158,8 @@ class OIDConfiguration(object):
 
 
 class MetricOIDConfiguration(OIDConfiguration):
-    def __init__(self, name, config, default_every, query_type, action, labels):
-        OIDConfiguration.__init__(self, name, config, default_every, query_type, action)
+    def __init__(self, name, config, default_every, query_type, action, template_name, community_template, labels):
+        OIDConfiguration.__init__(self, name, config, default_every, query_type, action, template_name, community_template)
         self.label_group = labels
 
 
@@ -188,8 +190,12 @@ class ModuleConfiguration(object):
             for template_label_name, template_label in config['template_labels'].items():
                 label_every = template_label.get('every', every)
                 query_type = self._get_type(template_label)
+                
+                template_name = template_label_name
+                community_template = template_label.get('community_template', None)
                 self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'],
-                                                                            label_every, query_type, 'templated_label')
+                                                                            label_every, query_type, 'templated_label',
+                                                                            template_name, community_template)
         except ValueError:
             logger.error('templated_label attibute should be a dict')
             raise BadConfigurationException()
@@ -201,9 +207,15 @@ class ModuleConfiguration(object):
                 query_type = self._get_type(label_group)
                 logger.debug('parse label list %s', label_group)
                 self.labels_group[label_group_name] = {}
+
+                template_name = label_group.get('template_label', "")
+                community_template = self.template_label.get(template_name, None)
+                if community_template is not None:
+                    community_template = community_template.community_template
                 for label_name, label_data in label_group['mappings'].items():
                     self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data,
-                                                                                       label_every, query_type, 'label')
+                                                                                       label_every, query_type, 'label',
+                                                                                       template_name, community_template)
         except ValueError:
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()
@@ -213,9 +225,16 @@ class ModuleConfiguration(object):
             for metric in config['metrics']:
                 metric_every = metric.get('every', every)
                 query_type = self._get_type(metric)
+                
+                template_name = metric.get('template_label', "")
+                community_template = self.template_label.get(template_name, None)
+                if community_template is not None:
+                    community_template = community_template.community_template
                 for metric_name, metric_data in metric['mappings'].items():
                     metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every,
-                                                        query_type, 'metrics', metric.get('append_tags', []))
+                                                        query_type, 'metrics', 
+                                                        template_name, community_template,
+                                                        metric.get('append_tags', []))
                     self.metrics.append(metric_obj)
         except ValueError:
             logger.error('metric attribute should be a list')
