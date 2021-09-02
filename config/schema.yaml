@@ -5,6 +5,7 @@ properties:
     uniqueItems: true
     items: 
       type: objects
+      additionalProperties: false
       required:
         - hostname
         - version
@@ -35,12 +36,14 @@ properties:
     patternProperties:
       ".+":
         type: object
+        additionalProperties: false
         properties:
           template_labels:
             type: object
             patternProperties:
               .+: 
                 type: object
+                additionalProperties: false
                 properties:
                   type:
                     type: string
@@ -63,19 +66,71 @@ properties:
           labels:
             type: object
             patternProperties:
+              .+:
+                type: object
+                additionalProperties: false
+                properties:
+                  type:
+                    type: string
+                    enum: 
+                      - get
+                      - walk
+                  every:
+                    type: string
+                    pattern: '^[0-9]+[smhdwMy]$'
+                    default: 1m
+                  template_label:
+                    type: string
+                  mappings:
+                    type: object
+                    patternProperties:
+                      .+: 
+                        type: string
+                    minProperties: 1
+                required:
+                  - type
+                  - mappings
             default: {}
           metrics:
             type: list
             minItems: 1
-            items: ***
+            uniqueItems: true
+            items: 
+              type: object
+              additionalProperties: false
+              properties:
+                type:
+                  type: string
+                  enum: 
+                    - get
+                    - walk
+                every:
+                  type: string
+                  pattern: '^[0-9]+[smhdwMy]$'
+                  default: 1m
+                template_label:
+                  type: string
+                mappings:
+                  type: dict
+                  patternProperties:
+                    .+: 
+                      type: string
+                append_tags:
+                  type: list
+                  items:
+                    type: string
+              required:
+                - type
+                - mappings
         required:
           - metrics
   description:
     type: object
     minProperties: 1
     patternProperties:
-      ".+": 
+      .+: 
         type: object
+        additionalProperties: false
         properties: 
           type:
             type: string
@@ -86,4 +141,6 @@ properties:
               - summary
           description:
             type: string
-        required: ["type", "description"]
+        required: 
+          - type
+          - description
