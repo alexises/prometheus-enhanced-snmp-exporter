@@ -69,6 +69,14 @@ class SNMPQuerier(object):
         self._engine = SnmpEngine()
         self._metrics = metrics
         self.mib_controller = MibViewController(self._engine.getMibBuilder())
+i
+    def _mibobj_resolution(self, mib_obj):
+        mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
+        mib_obj.addAsn1MibSource('file://~/.snmp/mibs')
+        mib_obj.resolveWithMib(self.mib_controller)
+
+        return mib_obj
+        
 
     def _mibstr_to_objstr(self, mib):
         try:
@@ -87,15 +95,10 @@ class SNMPQuerier(object):
 
                 logger.debug('mib component : %s', out)
                 mib_obj = ObjectIdentity(*out)
-                mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
-                mib_obj.addAsn1MibSource('file://~/.snmp/mibs')
-                mib_obj.resolveWithMib(self.mib_controller)
-                return mib_obj
+                return self._mibobj_resolution(mib_obj)
             logger.debug('test3')
             mib_obj = ObjectIdentity(mib)
-            mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
-            mib_obj.resolveWithMib(self.mib_controller)  # force exception raising
-            return mib_obj
+            return self._mibobj_resolution(mib_obj)
         except Exception as e:
             logger.error("can't resolv oid into object: %s", mib)
             logger.exception('detail ', e)
@@ -134,6 +137,8 @@ class SNMPQuerier(object):
                 logger.debug('query_result: %s', str(output[0]))
             if len(out) == 1:
                 logger.debug('input output data: %s', out[0][1])
+                data = out[0][1]
+                self._mibobj_resolution(out[0][1])
                 sanitized_output = _snmp_obj_to_str(out[0][1], self.mib_controller)
                 logger.debug('output data: %s', sanitized_output)
                 return sanitized_output
@@ -141,6 +146,7 @@ class SNMPQuerier(object):
                 out_dict = {}
                 for i in out:
                     key = list(tuple(i[0]))[-1]
+                    self._mibobj_resolution(i[1])
                     out_dict[key] = _snmp_obj_to_str(i[1], self.mib_controller)
                 logger.debug('output data: %s', out_dict)
                 return out_dict
