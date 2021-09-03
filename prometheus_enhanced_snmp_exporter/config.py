@@ -197,7 +197,7 @@ class ModuleConfiguration(object):
                 community_template = template_label.get('community_template', None)
                 self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'],
                                                                             label_every, query_type, 'templated_label',
-                                                                            template_name, community_template
+                                                                            template_name, community_template,
                                                                             store_method)
         except ValueError:
             logger.error('templated_label attibute should be a dict')

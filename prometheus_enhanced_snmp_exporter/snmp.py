@@ -27,27 +27,35 @@ logger = logging.getLogger(__name__)
 
 
 class SNMPConverter(object):
-  _obj = {
-    "subtree-as-string": convert_key_as_value
-    "value": get_value
-  }
+    def __init__(self):
+        self._obj = {
+            "subtree-as-string": self.convert_key_as_value,
+            "value": self.get_value
+        }
 
-  def get_value(self, obj, base_oid):
-      return obj[1]
+    def get_value(self, obj, base_oid):
+        key_obj_oid = obj[0].getOid()
+        base_obj_oid = base_oid[0].getOid()
+        
+        base_interpolation = len(base_obj_oid)
+        key = key_obj_oid[base_interpolation:].join('.')
+        return (key, obj[1])
 
-  def convert_key_as_value(self, obj, base_oid):
-      key_obj_oid = obj[0].getOid()
-      base_obj_oid = base_oid.getOid()
+    def convert_key_as_value(self, obj, base_oid):
+        key_obj_oid = obj[0].getOid()
+        base_obj_oid = base_oid[0].getOid()
 
-      base_interpolation = len(base_obj_oid)
-      size = int(key_obj_oid[base_interpolation])
-      out = ""
-      for i in range(size):
-          out += chr(key_obj_oid[base_interpolation + i + 1])
-      return out
+        base_interpolation = len(base_obj_oid)
+        size = int(key_obj_oid[base_interpolation])
+        out = ""
+        for i in range(size):
+            out += chr(key_obj_oid[base_interpolation + i + 1])
 
-  def __getitem__(self, key):
-     return self._obj[key]
+        key = key_obj_oid[base_interpolation:].join('.')
+        return (key, out)
+
+    def __getitem__(self, key):
+        return self._obj[key]
 
 
 
@@ -91,9 +99,11 @@ class SNMPQuerier(object):
         self._config = config
         self._storage = storage
         self._template_storage = template_storage
-        self._engine = SnmpEngine()
         self._metrics = metrics
+        
+        self._engine = SnmpEngine()
         self.mib_controller = MibViewController(self._engine.getMibBuilder())
+        self.converter = SNMPConverter()
 
     def _mibobj_resolution(self, mib_obj):
         mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
@@ -129,7 +139,7 @@ class SNMPQuerier(object):
             logger.exception('detail ', e)
             raise e
 
-    def query(self, oid, hostname, community, version, query_type='get'):
+    def query(self, oid, hostname, community, version, store_method, query_type='get'):
         logger.debug('check for OID %s on %s with %s', oid, hostname, community)
         if version == 'v2c' or version == 2:
             mpmodel = 1
@@ -162,20 +172,18 @@ class SNMPQuerier(object):
                 logger.debug('query_result: %s', str(output[0]))
             if len(out) == 1:
                 logger.debug('input output data: %s', out[0][1])
-                data = out[0][1]
-                self._mibobj_resolution(out[0][1])
-                sanitized_output = _snmp_obj_to_str(out[0][1], self.mib_controller)
-                logger.debug('output data: %s', sanitized_output)
-                return sanitized_output
+                data = out[0]
+                key, val = self.converter[store_method](out[0], oid_obj)
+                logger.debug('output data: %s', val)
+                return val
             else:
                 out_dict = {}
                 logger.debug('input output data: %s', out)
                 for i in out:
                     logger.debug('input output data: %s', i)
-                    ii = self._mibobj_resolution(i)
-                    logger.debug('resolved output data: %s, %s', ii, type(ii))
-                    key = list(tuple(i[0]))[-1]
-                    out_dict[key] = _snmp_obj_to_str(i[1], self.mib_controller)
+                    key, val = self.converter[store_method](i, oid_obj)
+                    out_dict[key] = val
+ 
                 logger.debug('output data: %s', out_dict)
                 return out_dict
 
@@ -193,9 +201,10 @@ class SNMPQuerier(object):
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
+        store_method = metric.store_method
 
         logger.info('update template label for %s: %s', hostname, metric_name)
-        output = self.query(oid, hostname, community, version, metric_type)
+        output = self.query(oid, hostname, community, version, store_method, metric_type)
         logger.debug(output)
         if metric_type == 'get':
             self._template_storage.set_label(hostname, module_name, template_group_name, output)
@@ -212,6 +221,7 @@ class SNMPQuerier(object):
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
+        store_method = metric.store_method
         # community_resolution
         template_name = metric.template_name
         template = metric.community_template
@@ -221,7 +231,7 @@ class SNMPQuerier(object):
         for community, label_name, label_value in \
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
-            output = self.query(oid, hostname, community, version, metric_type)
+            output = self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
             if metric_type == 'get':
                 self._storage.set_label(hostname, module_name, label_group_name, label_name, output)
@@ -238,11 +248,12 @@ class SNMPQuerier(object):
         metric_name = metric.name
         metric_type = metric.type
         oid = metric.oid
+        store_method = metric.store_method
         # community_resolution
         template_name = metric.template_name
         template = metric.community_template
 
-        output = self.query(oid, hostname, community, version, metric_type)
+        output = self.query(oid, hostname, community, version, store_method, metric_type)
 
         logger.debug(output)
         # now we need to resolve labels
