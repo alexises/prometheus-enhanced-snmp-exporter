@@ -50,6 +50,12 @@ properties:
                     enum: 
                       - get
                       - walk
+                  store_method:
+                    type: string
+                    enum:
+                      - value
+                      - subtree-as-string
+                    default: value
                   every:
                     type: string
                     pattern: '^[0-9]+[smhdwMy]$'

@@ -26,6 +26,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class SNMPConverter(object):
+  _obj = {
+    "subtree-as-string": convert_key_as_value
+    "value": get_value
+  }
+
+  def get_value(self, obj, base_oid):
+      return obj[1]
+
+  def convert_key_as_value(self, obj, base_oid):
+      key_obj_oid = obj[0].getOid()
+      base_obj_oid = base_oid.getOid()
+
+      base_interpolation = len(base_obj_oid)
+      size = int(key_obj_oid[base_interpolation])
+      out = ""
+      for i in range(size):
+          out += chr(key_obj_oid[base_interpolation + i + 1])
+      return out
+
+  def __getitem__(self, key):
+     return self._obj[key]
+
+
+
 def _snmp_obj_to_str(data, mib_controller):
     if isinstance(data, Null):
         return None
