@@ -69,7 +69,7 @@ class SNMPQuerier(object):
         self._engine = SnmpEngine()
         self._metrics = metrics
         self.mib_controller = MibViewController(self._engine.getMibBuilder())
-i
+
     def _mibobj_resolution(self, mib_obj):
         mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
         mib_obj.addAsn1MibSource('file://~/.snmp/mibs')
@@ -144,9 +144,12 @@ i
                 return sanitized_output
             else:
                 out_dict = {}
+                logger.debug('input output data: %s', out)
                 for i in out:
+                    logger.debug('input output data: %s', i)
+                    ii = self._mibobj_resolution(i)
+                    logger.debug('resolved output data: %s, %s', ii, type(ii))
                     key = list(tuple(i[0]))[-1]
-                    self._mibobj_resolution(i[1])
                     out_dict[key] = _snmp_obj_to_str(i[1], self.mib_controller)
                 logger.debug('output data: %s', out_dict)
                 return out_dict
@@ -242,7 +245,11 @@ i
                         scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name,
                                           template_group_name, template_group_data)
             for futur in as_completed(futurs):
-                pass
+                try:
+                    futur.result()
+                except Exception as e:
+                    logger.error('error on template warmup')
+                    logger.exception("details", e)
 
     def warmup_label_cache(self, max_threads, scheduler):
         with ThreadPoolExecutor(max_workers=max_threads) as executor:

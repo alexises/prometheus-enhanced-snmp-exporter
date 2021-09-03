@@ -88,7 +88,7 @@ def main():
 
     storage = LabelStorage()
     template_storage = TemplateStorage()
-    metrics = PrometheusMetricStorage(arguments.listen, arguments.path)
+    metrics = PrometheusMetricStorage(arguments.listen, arguments.path, storage, template_storage)
     querier = SNMPQuerier(config, storage, template_storage, metrics)
     scheduler = JobScheduler(arguments.max_threads)
 

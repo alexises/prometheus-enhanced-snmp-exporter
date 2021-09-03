@@ -14,6 +14,7 @@
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import yaml
 from threading import Lock
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,8 @@ class TemplateStorage(object):
             out.append((community_tpl, label_group, label))
         return out
 
+    def dump(self):
+        return yaml.dump(self._labels)       
 
 class LabelStorage(object):
     def __init__(self):

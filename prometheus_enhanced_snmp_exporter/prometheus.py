@@ -67,10 +67,12 @@ class WSGIServer_IPv6(WSGIServer):
 # on source code and not external metrics like this exporter
 # provides
 class PrometheusMetricStorage(threading.Thread):
-    def __init__(self, hostname, uri):
+    def __init__(self, hostname, uri, storage, template_storage):
         threading.Thread.__init__(self)
         self._metrics = {}
         self._hostname = hostname
+        self._storage = storage
+        self._template_storage = template_storage
         self._uri = uri
 
     def add_metric(self, name, metric_type, description):
@@ -92,13 +94,21 @@ class PrometheusMetricStorage(threading.Thread):
         res.text = self.metric_print()
         return res
 
+    def _dump_cache(self, context, request):
+        res = Response()
+        res.content_type = 'text/plain'
+        res.text = self._template_storage.dump()
+        return res
+
     def run(self):
         self._server.serve_forever()
 
     def start_http_server(self):
         with Configurator() as config:
             config.add_route('metric', self._uri)
+            config.add_route('dump_cache', '/dump')
             config.add_view(self._print_metrics_http, route_name='metric')
+            config.add_view(self._dump_cache, route_name='dump_cache')
             app = config.make_wsgi_app()
         hostname_component = self._hostname.split(':')
         hostname = hostname_component[0]
