@@ -19,6 +19,7 @@ from pysnmp.smi.view import MibViewController
 from pysnmp.smi.rfc1902 import ObjectIdentity
 from pysnmp.proto.rfc1902 import Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, \
                                  OctetString, Opaque, IpAddress, Bits
+from pysnmp.proto.rfc1905 import endOfMibView
 from pyasn1.type.univ import Null
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
@@ -142,7 +143,7 @@ class SNMPQuerier(object):
             raise e
 
     def query(self, oid, hostname, community, version, store_method, query_type='get'):
-        logger.debug('check for OID %s on %s with %s', oid, hostname, community)
+        logger.debug('check for OID  %s(%s) on %s with %s', oid, query_type, hostname, community)
         if version == 'v2c' or version == 2:
             mpmodel = 1
         else:
@@ -162,7 +163,7 @@ class SNMPQuerier(object):
             else:
                 logger.error('unknow method %s, should be get or walk', query_type)
                 raise ValueError('unknow method, should be get or walk')
-            out = []
+            out_dict = {}
             for error_indicator, error_status, error_index, output in snmp_method(SnmpEngine(), community, hostname_obj,
                                                                                   ContextData(), *positionals_args,
                                                                                   **extra_args):
@@ -170,24 +171,20 @@ class SNMPQuerier(object):
                     logger.error('snmp error while fetching %s : %s', oid, error_indicator)
                     continue
                 obj = output[0]
-                out.append(obj)
-                logger.debug('query_result: %s', str(output[0]))
-            if len(out) == 1:
-                logger.debug('input output data: %s', out[0][1])
-                data = out[0]
-                key, val = self.converter[store_method](out[0], oid_obj)
-                logger.debug('output data: %s', val)
-                return val
-            else:
-                out_dict = {}
-                logger.debug('input output data: %s', out)
-                for i in out:
-                    logger.debug('input output data: %s', i)
-                    key, val = self.converter[store_method](i, oid_obj)
-                    out_dict[key] = val
+                if obj[1] == endOfMibView:
+                    break
+                logger.debug('query_result: %s', str(obj))
+                key, val = self.converter[store_method](obj, oid_obj)
+                out_dict[key] = val
  
                 logger.debug('output data: %s', out_dict)
+            if query_type == 'walk':
                 return out_dict
+            else:
+                try:
+                    return list(out_dict.values())[0]
+                except KeyError:
+                    return None
 
         except PySnmpError as e:
             logger.debug('hostname: %s, oid: %s', hostname, oid)
@@ -230,16 +227,16 @@ class SNMPQuerier(object):
 
         logger.debug('template_name %s and template %s', template_name, template)
         # resolve community
-        for community, label_name, label_value in \
+        for community, template_label_name, template_label_value in \
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
             output = self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
             if metric_type == 'get':
-                self._storage.set_label(hostname, module_name, label_group_name, label_name, output)
+                self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name, template_label_value, output)
             else:
                 for key, val in output.items():
-                    self._storage.set_label(hostname, module_name, label_group_name, label_name, val, key)
+                    self._storage.set_label(hostname, module_name, label_group_name, label_name, val, template_label_name, template_label_value, key)
 
     def _update_metric(self, host_config, module_name, metric):
         # host_name

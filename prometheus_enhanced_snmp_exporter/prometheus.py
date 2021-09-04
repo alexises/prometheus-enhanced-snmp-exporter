@@ -97,7 +97,10 @@ class PrometheusMetricStorage(threading.Thread):
     def _dump_cache(self, context, request):
         res = Response()
         res.content_type = 'text/plain'
-        res.text = self._template_storage.dump()
+        res.text = "# template_storage"
+        res.text += self._template_storage.dump()
+        res.text += "# storage"
+        res.text += self._storage.dump()
         return res
 
     def run(self):
