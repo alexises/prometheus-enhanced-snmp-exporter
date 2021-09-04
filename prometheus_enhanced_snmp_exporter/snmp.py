@@ -38,7 +38,8 @@ class SNMPConverter(object):
         base_obj_oid = base_oid[0].getOid()
         
         base_interpolation = len(base_obj_oid)
-        key = key_obj_oid[base_interpolation:].join('.')
+        #key = key_obj_oid[base_interpolation:].join('.')
+        key = str(key_obj_oid[base_interpolation:])
         return (key, obj[1])
 
     def convert_key_as_value(self, obj, base_oid):
@@ -51,7 +52,8 @@ class SNMPConverter(object):
         for i in range(size):
             out += chr(key_obj_oid[base_interpolation + i + 1])
 
-        key = key_obj_oid[base_interpolation:].join('.')
+        #key = key_obj_oid[base_interpolation:].join('.')
+        key = str(key_obj_oid[base_interpolation:])
         return (key, out)
 
     def __getitem__(self, key):
@@ -300,7 +302,11 @@ class SNMPQuerier(object):
                             scheduler.add_job(self._update_label, label_data.every, host_config, module_name,
                                               label_group_name, label_name, label_data)
             for futur in as_completed(futurs):
-                pass
+                try:
+                    futur.result()
+                except Exception as e:
+                    logger.error('error on template warmup')
+                    logger.exception("details", e)
 
     def warmup_metrics(self, max_threads, scheduler):
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
@@ -312,4 +318,8 @@ class SNMPQuerier(object):
                         futurs.append(futur)
                         scheduler.add_job(self._update_metric, metric.every, host_config, module_name, metric)
             for futur in as_completed(futurs):
-                pass
+                try:
+                    futur.result()
+                except Exception as e:
+                    logger.error('error on template warmup')
+                    logger.exception("details", e)

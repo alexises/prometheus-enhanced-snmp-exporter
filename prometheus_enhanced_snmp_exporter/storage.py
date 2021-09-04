@@ -58,13 +58,16 @@ class TemplateStorage(object):
             logger.debug('label_group %s not in labels', label_group)
             return [(community, None, None)]
         labels = self._labels[hostname][module][label_group]
-        if not isinstance(labels, list):
+        if not isinstance(labels, dict):
             labels = [labels]
+        else:
+            labels = labels.values()
         out = []
         for label in labels:
             logger.debug('community "%s" template "%s"', community, label)
             community_tpl = template.format(community=community, template=label)
             out.append((community_tpl, label_group, label))
+        logger.debug('out : %s', out)
         return out
 
     def dump(self):
