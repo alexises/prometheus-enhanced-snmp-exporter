@@ -169,9 +169,10 @@ class SNMPQuerier(object):
                     logger.error('snmp error while fetching %s : %s', oid, error_indicator)
                     continue
                 obj = output[0]
+                logger.debug('query_result: %s', str(obj))
                 if obj[1] == endOfMibView:
                     break
-                logger.debug('query_result: %s', str(obj))
+
                 key, val = self.converter[store_method](obj, oid_obj)
                 out_dict[key] = val
  
@@ -251,20 +252,17 @@ class SNMPQuerier(object):
         template_name = metric.template_name
         template = metric.community_template
 
-        output = self.query(oid, hostname, community, version, store_method, metric_type)
-
-        logger.debug(output)
         # now we need to resolve labels
-        for community, label_name, label_value in self._template_storage.resolve_community(hostname, module_name,
+        for community, template_label_name, template_label_value in self._template_storage.resolve_community(hostname, module_name,
                                                                                            template_name, template, community):
+            output = self.query(oid, hostname, community, version, store_method, metric_type)
+            logger.debug(output)
             if metric_type == 'get':
-                labels = self._storage.resolve_label(hostname, module_name, metric.label_group)
-                labels[label_name] = label_value
+                labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value)
                 self._metrics.update_metric(metric_name, labels, output)
             else:
                 for output_index, output_value in output.items():
-                    labels = self._storage.resolve_label(hostname, module_name, metric.label_group, output_index)
-                    labels[label_name] = label_value
+                    labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value, output_index)
                     self._metrics.update_metric(metric_name, labels, output_value)
 
     def warmup_template_cache(self, max_threads, scheduler):
