@@ -217,10 +217,16 @@ class ModuleConfiguration(object):
                 if community_template is not None:
                     community_template = community_template.community_template
                 for label_name, label_data in label_group['mappings'].items():
-                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data,
+                    if isinstance(label_data, str):
+                        oid = label_data
+                        label_store_method = store_method
+                    else:
+                        oid = label_data['oid']
+                        label_store_method = label_data.get('store_method', store_method)
+                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, oid,
                                                                                        label_every, query_type, 'label',
                                                                                        template_name, community_template,
-                                                                                       store_method)
+                                                                                       label_store_method)
         except ValueError:
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()

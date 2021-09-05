@@ -32,7 +32,9 @@ class SNMPConverter(object):
         self.mib_controller = mib_controller
         self._obj = {
             "subtree-as-string": self.convert_key_as_value,
-            "value": self.get_value
+            "subtree-as-ip": self.convert_key_as_ip,
+            "value": self.get_value,
+            "hex-as-ip": self.hex_as_ip
         }
 
     def get_value(self, obj, base_oid):
@@ -43,6 +45,15 @@ class SNMPConverter(object):
         key = str(key_obj_oid[base_interpolation:])
         #return (key, _snmp_obj_to_str(obj[1]))
         return (key, str(obj[1]))
+
+    def hex_as_ip(self, obj, base_oid):
+        key, data = self.get_value(obj, base_oid)
+        out = []
+        for i in range(4):
+            logger.debug(data[i])
+            out.append('{}'.format(ord(data[i])))
+        return (key, '.'.join(out))
+            
 
     def convert_key_as_value(self, obj, base_oid):
         key_obj_oid = obj[0].getOid()
@@ -56,6 +67,16 @@ class SNMPConverter(object):
 
         key = str(key_obj_oid[base_interpolation:])
         return (key, out)
+
+    def convert_key_as_ip(self, obj, base_oid):
+        key_obj_oid = obj[0].getOid()
+        base_obj_oid = base_oid[0].getOid()
+
+        base_interpolation = len(base_obj_oid)
+
+        key = str(key_obj_oid[base_interpolation:])
+        val = str(key_obj_oid[-4:])
+        return (key, val)
 
     def __getitem__(self, key):
         return self._obj[key]
