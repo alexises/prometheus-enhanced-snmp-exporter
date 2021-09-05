@@ -92,8 +92,9 @@ class LabelStorage(object):
             self._labels[hostname][module][label_group] = {}
         if label_name not in self._labels[hostname][module][label_group]:
             self._labels[hostname][module][label_group][label_name] = {}
-        if template_str not in self._labels[hostname][module][label_group] and \
+        if template_str not in self._labels[hostname][module][label_group][label_name] and \
            walk_idx is not None:
+            logger.debug('init template_str for hostname and module %s %s %s', label_group, hostname, module)
             self._labels[hostname][module][label_group][label_name][template_str] = {}
         self._lock_init.release()
         if walk_idx is not None:

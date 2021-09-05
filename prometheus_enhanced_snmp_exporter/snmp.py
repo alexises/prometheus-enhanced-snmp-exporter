@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 
 class SNMPConverter(object):
-    def __init__(self):
+    def __init__(self, mib_controller):
+        self.mib_controller = mib_controller
         self._obj = {
             "subtree-as-string": self.convert_key_as_value,
             "value": self.get_value
@@ -39,9 +40,9 @@ class SNMPConverter(object):
         base_obj_oid = base_oid[0].getOid()
         
         base_interpolation = len(base_obj_oid)
-        #key = key_obj_oid[base_interpolation:].join('.')
         key = str(key_obj_oid[base_interpolation:])
-        return (key, obj[1])
+        #return (key, _snmp_obj_to_str(obj[1]))
+        return (key, str(obj[1]))
 
     def convert_key_as_value(self, obj, base_oid):
         key_obj_oid = obj[0].getOid()
@@ -53,48 +54,45 @@ class SNMPConverter(object):
         for i in range(size):
             out += chr(key_obj_oid[base_interpolation + i + 1])
 
-        #key = key_obj_oid[base_interpolation:].join('.')
         key = str(key_obj_oid[base_interpolation:])
         return (key, out)
 
     def __getitem__(self, key):
         return self._obj[key]
 
-
-
-def _snmp_obj_to_str(data, mib_controller):
-    if isinstance(data, Null):
-        return None
-    if isinstance(data, Integer32) or \
-       isinstance(data, Integer) or \
-       isinstance(data, Counter32) or \
-       isinstance(data, Gauge32) or \
-       isinstance(data, Unsigned32) or \
-       isinstance(data, TimeTicks) or \
-       isinstance(data, Counter64):
-        return int(data)
-    if isinstance(data, OctetString) or \
-       isinstance(data, Opaque):
-        return str(data)
-    if isinstance(data, IpAddress) or \
-       isinstance(data, Bits):
-        return data.prettyPrint()
-    if isinstance(data, ObjectIdentity):
-        data.addAsn1MibSource('file:///usr/share/snmp/mibs')
-        data.resolveWithMib(mib_controller)
-        logger.debug('%s', data.getMibSymbol())
-        out = list(data.getMibSymbol())
-        flattened_out = []
-        for i in range(0, len(out)):
-            if isinstance(out[i], tuple):
-                for j in list(out[i]):
-                    flattened_out.append(str(j))
-            else:
-                flattened_out.append(out[i])
-        outStr = '{}::{}'.format(flattened_out[0], '.'.join(flattened_out[1:]))
-        return outStr
-    else:
-        return str(data)
+    def _snmp_obj_to_str(data):
+        if isinstance(data, Null):
+            return None
+        if isinstance(data, Integer32) or \
+           isinstance(data, Integer) or \
+           isinstance(data, Counter32) or \
+           isinstance(data, Gauge32) or \
+           isinstance(data, Unsigned32) or \
+           isinstance(data, TimeTicks) or \
+           isinstance(data, Counter64):
+            return int(data)
+        if isinstance(data, OctetString) or \
+           isinstance(data, Opaque):
+            return str(data)
+        if isinstance(data, IpAddress) or \
+           isinstance(data, Bits):
+            return data.prettyPrint()
+        if isinstance(data, ObjectIdentity):
+            data.addAsn1MibSource('file:///usr/share/snmp/mibs')
+            data.resolveWithMib(self.mib_controller)
+            logger.debug('%s', data.getMibSymbol())
+            out = list(data.getMibSymbol())
+            flattened_out = []
+            for i in range(0, len(out)):
+                if isinstance(out[i], tuple):
+                    for j in list(out[i]):
+                        flattened_out.append(str(j))
+                else:
+                    flattened_out.append(out[i])
+            outStr = '{}::{}'.format(flattened_out[0], '.'.join(flattened_out[1:]))
+            return outStr
+        else:
+            return str(data)
 
 
 class SNMPQuerier(object):
@@ -106,7 +104,7 @@ class SNMPQuerier(object):
         
         self._engine = SnmpEngine()
         self.mib_controller = MibViewController(self._engine.getMibBuilder())
-        self.converter = SNMPConverter()
+        self.converter = SNMPConverter(self.mib_controller)
 
     def _mibobj_resolution(self, mib_obj):
         mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
@@ -209,6 +207,7 @@ class SNMPQuerier(object):
             self._template_storage.set_label(hostname, module_name, template_group_name, output)
         else:
             for key, val in output.items():
+                logger.debug('set label %s = %s', key, val)
                 self._template_storage.set_label(hostname, module_name, template_group_name, val, key)
 
     def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
