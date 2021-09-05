@@ -113,6 +113,7 @@ class LabelStorage(object):
             return {}
         if isinstance(label_group, str):
             label_group = [label_group]
+        logger.debug("labels group to check : %s", label_group)
         labels = {}
         for group in label_group:
             group_component = group.split('.')
@@ -122,8 +123,13 @@ class LabelStorage(object):
             if group_component[0] == '':
                 group_component[0] = module
 
-            for label, value in self._labels.get(hostname, {}).get(group_component[0], {}).\
-                    get(group_component[1], {}).get(template_str, {}).items():
+            label_data = self._labels.get(hostname, {}).get(group_component[0], {}).\
+                    get(group_component[1], {})
+
+            for label, template_value in label_data.items():
+                if template_str not in template_value:
+                    continue
+                value = template_value[template_str]
                 if walk_idx is None or \
                    not isinstance(value, dict):
                     labels[label] = value
