@@ -17,6 +17,7 @@
 import argparse
 import logging
 import sys
+from datetime import datetime
 
 from .config import parse_config, BadConfigurationException
 from .snmp import SNMPQuerier
@@ -72,6 +73,7 @@ def init_logger():
 def main():
     handler = init_logger()
     logger.info('Starting')
+    start_time = datetime.now()
     arguments = get_args(handler)
     logger.debug('argument parsed')
 
@@ -103,6 +105,8 @@ def main():
     logger.info('warmup done, now expose metrics')
     metrics.start_http_server()
     logger.info('and finally, start scheduler')
+    end_time = datetime.now()
+    logger.debug('Initalization duration : %s', end_time - start_time)
     scheduler.start_scheduler()
 
 
