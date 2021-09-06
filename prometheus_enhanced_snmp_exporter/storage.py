@@ -116,6 +116,9 @@ class LabelStorage(object):
         logger.debug("labels group to check : %s", label_group)
         labels = {}
         for group in label_group:
+            if group == '__template_label':
+                labels[template_name] = template_data
+                continue
             group_component = group.split('.')
             if len(group_component) != 2:
                 logger.warning('bad component format (%s), skiping', group)
@@ -134,7 +137,7 @@ class LabelStorage(object):
                    not isinstance(value, dict):
                     labels[label] = value
                 else:
-                    labels[label] = value[walk_idx]
+                    labels[label] = value.get(walk_idx, "")
         return labels
     
     def dump(self):
