@@ -33,7 +33,7 @@ setup(
       ('/etc/prometheus-enhanced-exporter/', ['config.yaml']),
       ('/etc/default/', ['prometheus-enhanced-exporter']),
       ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
-    ]
+    ],
     entry_points={
         'console_scripts': [
             'prometheus-enhanced-exporter = prometheus_enhanced_exporter:main'
