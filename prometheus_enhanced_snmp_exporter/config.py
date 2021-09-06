@@ -188,7 +188,7 @@ class ModuleConfiguration(object):
 
     def _init_template_labels(self, config, module_name, every):
         try:
-            for template_label_name, template_label in config['template_labels'].items():
+            for template_label_name, template_label in config.get('template_labels', {}).items():
                 label_every = template_label.get('every', every)
                 query_type = self._get_type(template_label)
                 store_method = template_label.get('store_method', 'value')
