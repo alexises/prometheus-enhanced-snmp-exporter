@@ -50,7 +50,6 @@ class SNMPConverter(object):
         key, data = self.get_value(obj, base_oid)
         out = []
         for i in range(4):
-            logger.debug(data[i])
             out.append('{}'.format(ord(data[i])))
         return (key, '.'.join(out))
             
