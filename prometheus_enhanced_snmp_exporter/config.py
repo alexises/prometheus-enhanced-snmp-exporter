@@ -165,7 +165,7 @@ class OIDConfiguration(object):
 
 
 class MetricOIDConfiguration(OIDConfiguration):
-    def __init__(self, name, config, default_every, query_type, action, template_name, community_template, 
+    def __init__(self, name, config, default_every, query_type, action, template_name, community_template,
                  store_method, labels):
         OIDConfiguration.__init__(self, name, config, default_every, query_type, action, template_name, community_template,
                                   store_method)
@@ -200,7 +200,7 @@ class ModuleConfiguration(object):
                 label_every = template_label.get('every', every)
                 query_type = self._get_type(template_label)
                 store_method = template_label.get('store_method', 'value')
- 
+
                 template_name = template_label_name
                 community_template = template_label.get('community_template', None)
                 self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'],

@@ -140,6 +140,6 @@ class LabelStorage(object):
                 else:
                     labels[label] = value.get(walk_idx, "")
         return labels
- 
+
     def dump(self):
-        return yaml.dump(self._labels)       
+        return yaml.dump(self._labels)

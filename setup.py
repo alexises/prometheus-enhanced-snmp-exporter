@@ -7,7 +7,7 @@ setup(
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
     long_description=open('README.md').read(),
-    classifiers = [
+    classifiers=[
       'Development Status :: 3 - Alpha',
       'Environment :: Console',
       'Intended Audience :: Information Technology',

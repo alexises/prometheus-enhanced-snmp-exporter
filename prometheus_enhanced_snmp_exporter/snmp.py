@@ -129,7 +129,7 @@ class SNMPQuerier(object):
         mib_obj.addAsn1MibSource('file://~/.snmp/mibs')
         mib_obj.resolveWithMib(self.mib_controller)
 
-        return mib_obj       
+        return mib_obj
 
     def _mibstr_to_objstr(self, mib):
         try:
@@ -192,7 +192,7 @@ class SNMPQuerier(object):
 
                 key, val = self.converter[store_method](obj, oid_obj)
                 out_dict[key] = val
- 
+
                 logger.debug('output data: %s', out_dict)
             if query_type == 'walk':
                 return out_dict
@@ -250,10 +250,12 @@ class SNMPQuerier(object):
             output = self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
             if metric_type == 'get':
-                self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name, template_label_value, output)
+                self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
+                template_label_value, output)
             else:
                 for key, val in output.items():
-                    self._storage.set_label(hostname, module_name, label_group_name, label_name, val, template_label_name, template_label_value, key)
+                    self._storage.set_label(hostname, module_name, label_group_name, label_name, val,
+                                            template_label_name, template_label_value, key)
 
     def _update_metric(self, host_config, module_name, metric):
         # host_name
@@ -270,12 +272,16 @@ class SNMPQuerier(object):
         template = metric.community_template
 
         # now we need to resolve labels
-        for community, template_label_name, template_label_value in self._template_storage.resolve_community(hostname, module_name,
-                                                                                           template_name, template, community):
+        for community, template_label_name, template_label_value in self._template_storage.resolve_community(hostname,
+                                                                                                             module_name,
+                                                                                                             template_name,
+                                                                                                             template,
+                                                                                                             community):
             output = self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
             if metric_type == 'get':
-                labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value)
+                labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name,
+                                                     template_label_value)
                 labels = {**host_config.static_labels, **labels}
                 self._metrics.update_metric(metric_name, labels, output)
             else:
