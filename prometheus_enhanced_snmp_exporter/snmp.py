@@ -80,7 +80,7 @@ class SNMPConverter(object):
     def __getitem__(self, key):
         return self._obj[key]
 
-    def _snmp_obj_to_str(data):
+    def _snmp_obj_to_str(self, data):
         if isinstance(data, Null):
             return None
         if isinstance(data, Integer32) or \
