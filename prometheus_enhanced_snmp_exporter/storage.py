@@ -71,7 +71,8 @@ class TemplateStorage(object):
         return out
 
     def dump(self):
-        return yaml.dump(self._labels)       
+        return yaml.dump(self._labels)
+
 
 class LabelStorage(object):
     def __init__(self):
@@ -127,7 +128,7 @@ class LabelStorage(object):
                 group_component[0] = module
 
             label_data = self._labels.get(hostname, {}).get(group_component[0], {}).\
-                    get(group_component[1], {})
+                get(group_component[1], {})
 
             for label, template_value in label_data.items():
                 if template_str not in template_value:
@@ -139,6 +140,6 @@ class LabelStorage(object):
                 else:
                     labels[label] = value.get(walk_idx, "")
         return labels
-    
+ 
     def dump(self):
         return yaml.dump(self._labels)       

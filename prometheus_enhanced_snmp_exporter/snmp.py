@@ -40,10 +40,9 @@ class SNMPConverter(object):
     def get_value(self, obj, base_oid):
         key_obj_oid = obj[0].getOid()
         base_obj_oid = base_oid[0].getOid()
-        
+
         base_interpolation = len(base_obj_oid)
         key = str(key_obj_oid[base_interpolation:])
-        #return (key, _snmp_obj_to_str(obj[1]))
         return (key, str(obj[1]))
 
     def hex_as_ip(self, obj, base_oid):
@@ -52,7 +51,6 @@ class SNMPConverter(object):
         for i in range(4):
             out.append('{}'.format(ord(data[i])))
         return (key, '.'.join(out))
-            
 
     def convert_key_as_value(self, obj, base_oid):
         key_obj_oid = obj[0].getOid()
@@ -121,7 +119,7 @@ class SNMPQuerier(object):
         self._storage = storage
         self._template_storage = template_storage
         self._metrics = metrics
-        
+
         self._engine = SnmpEngine()
         self.mib_controller = MibViewController(self._engine.getMibBuilder())
         self.converter = SNMPConverter(self.mib_controller)
@@ -131,8 +129,7 @@ class SNMPQuerier(object):
         mib_obj.addAsn1MibSource('file://~/.snmp/mibs')
         mib_obj.resolveWithMib(self.mib_controller)
 
-        return mib_obj
-        
+        return mib_obj       
 
     def _mibstr_to_objstr(self, mib):
         try:
