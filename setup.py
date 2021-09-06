@@ -2,15 +2,41 @@ from distutils.core import setup
 
 setup(
     name='prometheus-enhanced-snmp-exporter',
-    version='0.1dev',
+    version='0.1alpha',
     packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
     long_description=open('README.md').read(),
+    classifiers = [
+      'Development Status :: 3 - Alpha',
+      'Environment :: Console',
+      'Intended Audience :: Information Technology',
+      'Intended Audience :: System Administrators',
+      'Intended Audience :: Telecommunications Industry',
+      'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+      'Operating System :: POSIX',
+      'Topic :: System :: Monitoring',
+      'Topic :: System :: Networking :: Monitoring',
+      'Programming Language :: Python :: 3.5',
+      'Programming Language :: Python :: 3.6',
+      'Programming Language :: Python :: 3.7',
+      'Programming Language :: Python :: 3.8'
+    ],
+    python_requires='>=3.5',
     install_requires=[
         "pyramid >= 1.5",
         "pysnmp >= 4.2",
         "APScheduler >= 3.5",
         "PyYAML >= 3.11"
+    ],
+    data_files=[
+      ('/etc/prometheus-enhanced-exporter/', ['config.yaml']),
+      ('/etc/default/', ['prometheus-enhanced-exporter']),
+      ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
     ]
+    entry_points={
+        'console_scripts': [
+            'prometheus-enhanced-exporter = prometheus_enhanced_exporter:main'
+        ]
+    },
 )
