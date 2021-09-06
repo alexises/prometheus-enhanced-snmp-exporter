@@ -280,10 +280,12 @@ class SNMPQuerier(object):
             logger.debug(output)
             if metric_type == 'get':
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value)
+                labels = {**host_config.static_labels, **labels}
                 self._metrics.update_metric(metric_name, labels, output)
             else:
                 for output_index, output_value in output.items():
                     labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value, output_index)
+                    labels = {**host_config.static_labels, **labels}
                     self._metrics.update_metric(metric_name, labels, output_value)
 
     def warmup_template_cache(self, max_threads, scheduler):

@@ -73,6 +73,12 @@ class HostConfiguration(object):
             raise BadConfigurationException()
         self.community = config.get('community', 'public')
         self.version = config.get('version', '1')
+        static_labels = config.get('static_labels', {})
+        self.static_labels = {}
+        for key, val in static_labels.items():
+            if val == '__hostname':
+               val = self.hostname
+            self.static_labels[key] = val
         try:
             # here, we store as is, we will perform metric reconciliation
             # after the full parsing
