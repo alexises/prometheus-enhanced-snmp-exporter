@@ -161,6 +161,11 @@ class SNMPQuerier(object):
             logger.exception('detail ', e)
             raise e
 
+    @asyncio.coroutine
+    def query_asyncio(self, func, *args, **kargs):
+        (error_indicator, error_status, error_index, output) =  yield from func(*args, **kargs) 
+        return (error_indicator, error_status, error_index, output)
+
     async def query(self, oid, hostname, community, version, store_method, query_type='get'):
         logger.debug('check for OID  %s(%s) on %s with %s', oid, query_type, hostname, community)
         if version == 'v2c' or version == 2:
@@ -184,7 +189,7 @@ class SNMPQuerier(object):
                 raise ValueError('unknow method, should be get or walk')
             out_dict = {}
             while 1:
-                error_indicator, error_status, error_index, output = yield from snmp_method(SnmpEngine(), community, hostname_obj,
+                error_indicator, error_status, error_index, output = await self.query_asyncio(snmp_method, SnmpEngine(), community, hostname_obj,
                                                                                   ContextData(), *positionals_args,
                                                                                   **extra_args)
                 if error_indicator is not None:
