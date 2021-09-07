@@ -151,9 +151,8 @@ class SNMPQuerier(object):
 
                 logger.debug('mib component : %s', out)
                 mib_obj = ObjectIdentity(*out)
-                return self._mibobj_resolution(mib_obj)
-            logger.debug('test3')
-            mib_obj = ObjectIdentity(mib)
+            else:
+                mib_obj = ObjectIdentity(mib)
             self.mib_cache[mib] = self._mibobj_resolution(mib_obj)
             return self.mib_cache[mib]
         except Exception as e:
