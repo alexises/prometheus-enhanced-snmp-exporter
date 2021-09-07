@@ -123,6 +123,7 @@ class SNMPQuerier(object):
         self._engine = SnmpEngine()
         self.mib_controller = MibViewController(self._engine.getMibBuilder())
         self.converter = SNMPConverter(self.mib_controller)
+        self.mib_cache = {}
 
     def _mibobj_resolution(self, mib_obj):
         mib_obj.addAsn1MibSource('file:///usr/share/snmp/mibs')
@@ -132,6 +133,8 @@ class SNMPQuerier(object):
         return mib_obj
 
     def _mibstr_to_objstr(self, mib):
+        if mib in self.mib_cache:
+            return self.mib_cache[mib]
         try:
             logger.debug('mib to check : %s', mib)
             if '::' in mib:
@@ -151,7 +154,8 @@ class SNMPQuerier(object):
                 return self._mibobj_resolution(mib_obj)
             logger.debug('test3')
             mib_obj = ObjectIdentity(mib)
-            return self._mibobj_resolution(mib_obj)
+            self.mib_cache[mib] = self._mibobj_resolution(mib_obj)
+            return self.mib_cache[mib]
         except Exception as e:
             logger.error("can't resolv oid into object: %s", mib)
             logger.exception('detail ', e)
