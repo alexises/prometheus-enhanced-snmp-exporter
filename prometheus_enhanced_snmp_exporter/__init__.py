@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import argparse
 import logging
 import sys
@@ -70,7 +71,7 @@ def init_logger():
     return handler
 
 
-def main():
+def main_without_scheduler():
     handler = init_logger()
     logger.info('Starting')
     start_time = datetime.now()
@@ -95,19 +96,25 @@ def main():
     scheduler = JobScheduler(arguments.max_threads)
 
     logger.info('warmup template cache')
-    querier.warmup_template_cache(arguments.max_threads, scheduler)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(querier.warmup_template_cache(arguments.max_threads, scheduler))
     logger.info('warmup label cache (%s threads)', arguments.max_threads)
-    querier.warmup_label_cache(arguments.max_threads, scheduler)
+    loop.run_until_complete(querier.warmup_label_cache(arguments.max_threads, scheduler))
     logger.info('warmup metric (%s threads)', arguments.max_threads)
     for metric_name, metric_data in config.descriptions.items():
         metrics.add_metric(metric_name, metric_data['type'], metric_data['description'])
-    querier.warmup_metrics(arguments.max_threads, scheduler)
+    loop.run_until_complete(querier.warmup_metrics(arguments.max_threads, scheduler))
+    end_time = datetime.now()
+    logger.info('Initalization duration : %s', end_time - start_time)
+    return (metrics, scheduler)
+
+def main():
+    metrics, scheduler = main_without_scheduler()
     logger.info('warmup done, now expose metrics')
     metrics.start_http_server()
     logger.info('and finally, start scheduler')
-    end_time = datetime.now()
-    logger.debug('Initalization duration : %s', end_time - start_time)
     scheduler.start_scheduler()
+
 
 
 if __name__ == '__main__':

@@ -13,7 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
-from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmd, bulkCmd, ContextData
+import asyncio
+from pysnmp.hlapi.asyncio import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmd, bulkCmd, ContextData, isEndOfMib
 from pysnmp.error import PySnmpError
 from pysnmp.smi.view import MibViewController
 from pysnmp.smi.rfc1902 import ObjectIdentity
@@ -160,7 +161,7 @@ class SNMPQuerier(object):
             logger.exception('detail ', e)
             raise e
 
-    def query(self, oid, hostname, community, version, store_method, query_type='get'):
+    async def query(self, oid, hostname, community, version, store_method, query_type='get'):
         logger.debug('check for OID  %s(%s) on %s with %s', oid, query_type, hostname, community)
         if version == 'v2c' or version == 2:
             mpmodel = 1
@@ -182,17 +183,19 @@ class SNMPQuerier(object):
                 logger.error('unknow method %s, should be get or walk', query_type)
                 raise ValueError('unknow method, should be get or walk')
             out_dict = {}
-            for error_indicator, error_status, error_index, output in snmp_method(SnmpEngine(), community, hostname_obj,
+            while 1:
+                error_indicator, error_status, error_index, output = yield from snmp_method(SnmpEngine(), community, hostname_obj,
                                                                                   ContextData(), *positionals_args,
-                                                                                  **extra_args):
+                                                                                  **extra_args)
                 if error_indicator is not None:
                     logger.error('snmp error while fetching %s : %s', oid, error_indicator)
                     continue
                 obj = output[0]
-                logger.debug('query_result: %s', str(obj))
-                if obj[1] == endOfMibView:
-                    break
 
+                logger.debug('query_result: %s', str(obj))
+
+                if isEndOfMib(output[-1]):
+                    break
                 key, val = self.converter[store_method](obj, oid_obj)
                 out_dict[key] = val
 
@@ -210,7 +213,7 @@ class SNMPQuerier(object):
             logger.exception('errer when fetching oid: %s', e)
             return None
 
-    def _update_template_label(self, host_config, module_name, template_group_name, metric):
+    async def _update_template_label(self, host_config, module_name, template_group_name, metric):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -222,7 +225,7 @@ class SNMPQuerier(object):
         store_method = metric.store_method
 
         logger.info('update template label for %s: %s', hostname, metric_name)
-        output = self.query(oid, hostname, community, version, store_method, metric_type)
+        output = await self.query(oid, hostname, community, version, store_method, metric_type)
         logger.debug(output)
         if metric_type == 'get':
             self._template_storage.set_label(hostname, module_name, template_group_name, output)
@@ -231,7 +234,7 @@ class SNMPQuerier(object):
                 logger.debug('set label %s = %s', key, val)
                 self._template_storage.set_label(hostname, module_name, template_group_name, val, key)
 
-    def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
+    async def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -250,7 +253,7 @@ class SNMPQuerier(object):
         for community, template_label_name, template_label_value in \
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
-            output = self.query(oid, hostname, community, version, store_method, metric_type)
+            output = await self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
             if metric_type == 'get':
                 self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
@@ -260,7 +263,7 @@ class SNMPQuerier(object):
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val,
                                             template_label_name, template_label_value, key)
 
-    def _update_metric(self, host_config, module_name, metric):
+    async def _update_metric(self, host_config, module_name, metric):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -280,7 +283,7 @@ class SNMPQuerier(object):
                                                                                                              template_name,
                                                                                                              template,
                                                                                                              community):
-            output = self.query(oid, hostname, community, version, store_method, metric_type)
+            output = await self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
             if metric_type == 'get':
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name,
@@ -293,55 +296,55 @@ class SNMPQuerier(object):
                     labels = {**host_config.static_labels, **labels}
                     self._metrics.update_metric(metric_name, labels, output_value)
 
-    def warmup_template_cache(self, max_threads, scheduler):
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:
-            futurs = []
-            for host_config in self._config.hosts:
-                for module_name, module_data in host_config.items():
-                    for template_group_name, template_group_data in module_data.template_label.items():
-                        futur = executor.submit(self._update_template_label, host_config, module_name,
-                                                template_group_name, template_group_data)
-                        futurs.append(futur)
-                        scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name,
-                                          template_group_name, template_group_data)
-            for futur in as_completed(futurs):
+    async def warmup_template_cache(self, max_threads, scheduler):
+        loop = asyncio.get_event_loop()
+        futurs = []
+        for host_config in self._config.hosts:
+            for module_name, module_data in host_config.items():
+                for template_group_name, template_group_data in module_data.template_label.items():
+                    futur = loop.create_task(self._update_template_label(host_config, module_name,
+                                            template_group_name, template_group_data))
+                    futurs.append(futur)
+                    scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name,
+                                      template_group_name, template_group_data)
+            for futur in asyncio.as_completed(futurs):
                 try:
-                    futur.result()
+                    await futur
                 except Exception as e:
                     logger.error('error on template warmup')
                     logger.exception("details", e)
 
-    def warmup_label_cache(self, max_threads, scheduler):
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:
-            futurs = []
-            for host_config in self._config.hosts:
-                for module_name, module_data in host_config.items():
-                    for label_group_name, label_group_data in module_data.labels_group.items():
-                        for label_name, label_data in label_group_data.items():
-                            futur = executor.submit(self._update_label, host_config, module_name,
-                                                    label_group_name, label_name, label_data)
-                            futurs.append(futur)
-                            scheduler.add_job(self._update_label, label_data.every, host_config, module_name,
-                                              label_group_name, label_name, label_data)
-            for futur in as_completed(futurs):
-                try:
-                    futur.result()
-                except Exception as e:
-                    logger.error('error on template warmup')
-                    logger.exception("details", e)
-
-    def warmup_metrics(self, max_threads, scheduler):
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:
-            futurs = []
-            for host_config in self._config.hosts:
-                for module_name, module_data in host_config.items():
-                    for metric in module_data.metrics:
-                        futur = executor.submit(self._update_metric, host_config, module_name, metric)
+    async def warmup_label_cache(self, max_threads, scheduler):
+        loop = asyncio.get_event_loop()
+        futurs = []
+        for host_config in self._config.hosts:
+            for module_name, module_data in host_config.items():
+                for label_group_name, label_group_data in module_data.labels_group.items():
+                    for label_name, label_data in label_group_data.items():
+                        futur = loop.create_task(self._update_label(host_config, module_name,
+                                                label_group_name, label_name, label_data))
                         futurs.append(futur)
-                        scheduler.add_job(self._update_metric, metric.every, host_config, module_name, metric)
-            for futur in as_completed(futurs):
-                try:
-                    futur.result()
-                except Exception as e:
-                    logger.error('error on template warmup')
-                    logger.exception("details", e)
+                        scheduler.add_job(self._update_label, label_data.every, host_config, module_name,
+                                          label_group_name, label_name, label_data)
+        for futur in asyncio.as_completed(futurs):
+            try:
+                await futur
+            except Exception as e:
+                logger.error('error on template warmup')
+                logger.exception("details", e)
+
+    async def warmup_metrics(self, max_threads, scheduler):
+        loop = asyncio.get_event_loop()
+        futurs = []
+        for host_config in self._config.hosts:
+            for module_name, module_data in host_config.items():
+                for metric in module_data.metrics:
+                    futur = loop.create_task(self._update_metric(host_config, module_name, metric))
+                    futurs.append(futur)
+                    scheduler.add_job(self._update_metric, metric.every, host_config, module_name, metric)
+        for futur in asyncio.as_completed(futurs):
+            try:
+                await futur
+            except Exception as e:
+                logger.error('error on template warmup')
+                logger.exception("details", e)
