@@ -162,9 +162,41 @@ class SNMPQuerier(object):
             raise e
 
     @asyncio.coroutine
-    def query_asyncio(self, func, *args, **kargs):
-        (error_indicator, error_status, error_index, output) =  yield from func(*args, **kargs) 
-        return (error_indicator, error_status, error_index, output)
+    def query_asyncio(self, func, engine, community, hostname, context, oids, args):
+        data = []
+        orig_oid = oids
+        while 1:
+            (error_indicator, error_status, error_index, output) =  yield from func(
+                    engine,
+                    community,
+                    hostname,
+                    context,
+                    *args,
+                    oids)
+
+            if error_indicator:
+                logger.error('snmp error while fetching %s : %s', oid, error_indicator)
+                break
+            elif error_status:
+                logger.error('%s',
+                    errorStatus.prettyPrint(),
+                )
+                break
+            if not isinstance(output, list):
+                output = [output]
+
+            for i in output:
+                if not orig_oid[0].isPrefixOf(i[0][0]):
+                    return data
+                logger.debug('%s %s', orig_oid[0], i[0][0])
+                data.append(i)
+
+            if isEndOfMib(output[-1]):
+                data.pop()
+                return data
+            logger.debug(output[-1][0])
+            oids = output[-1]
+
 
     async def query(self, oid, hostname, community, version, store_method, query_type='get'):
         logger.debug('check for OID  %s(%s) on %s with %s', oid, query_type, hostname, community)
@@ -178,33 +210,24 @@ class SNMPQuerier(object):
             oid_obj = ObjectType(self._mibstr_to_objstr(oid))
             if query_type == 'get':
                 snmp_method = getCmd
-                positionals_args = [oid_obj]
-                extra_args = {}
+                positionals_args = []
             elif query_type == 'walk':
                 snmp_method = bulkCmd
-                positionals_args = [0, 25, oid_obj]
-                extra_args = {'lexicographicMode': False}
+                positionals_args = [0, 25]
             else:
                 logger.error('unknow method %s, should be get or walk', query_type)
                 raise ValueError('unknow method, should be get or walk')
             out_dict = {}
-            while 1:
-                error_indicator, error_status, error_index, output = await self.query_asyncio(snmp_method, SnmpEngine(), community, hostname_obj,
-                                                                                  ContextData(), *positionals_args,
-                                                                                  **extra_args)
-                if error_indicator is not None:
-                    logger.error('snmp error while fetching %s : %s', oid, error_indicator)
-                    continue
-                obj = output[0]
-
+            logger.debug('start loop')
+            for output_elem in await self.query_asyncio(snmp_method, self._engine, community, hostname_obj,
+                                                        ContextData(), oid_obj, positionals_args
+                                                                                   ):
+                obj = output_elem[0]
                 logger.debug('query_result: %s', str(obj))
-
-                if isEndOfMib(output[-1]):
-                    break
                 key, val = self.converter[store_method](obj, oid_obj)
                 out_dict[key] = val
 
-                logger.debug('output data: %s', out_dict)
+            logger.debug('output data: %s', out_dict)
             if query_type == 'walk':
                 return out_dict
             else:
