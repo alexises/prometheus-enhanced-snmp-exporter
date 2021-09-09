@@ -186,16 +186,16 @@ class SNMPQuerier(object):
                 output = [output]
 
             for i in output:
+                logger.debug('compare %s with %s', orig_oid[0], i[0][0])
                 if not orig_oid[0].isPrefixOf(i[0][0]):
+                    logger.debug('exit')
                     return data
-                logger.debug('%s %s', orig_oid[0], i[0][0])
                 data.append(i)
 
             if isEndOfMib(output[-1]):
                 data.pop()
                 return data
-            logger.debug(output[-1][0])
-            oids = output[-1]
+            oids = output[-1][0]
 
 
     async def query(self, oid, hostname, community, version, store_method, query_type='get'):
