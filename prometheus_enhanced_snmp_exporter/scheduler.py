@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.executors.asyncio import AsyncIOExecutor
@@ -38,3 +39,7 @@ class JobScheduler(object):
 
     def start_scheduler(self):
         self.scheduler.start()
+        try:
+            asyncio.get_event_loop().run_forever()
+        except (KeyboardInterrupt, SystemExit):
+            pass

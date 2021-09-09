@@ -39,7 +39,7 @@ class SNMPConverter(object):
         }
 
     def get_value(self, obj, base_oid):
-        key_obj_oid = obj[0].getOid()
+        key_obj_oid = obj[0]
         base_obj_oid = base_oid[0].getOid()
 
         base_interpolation = len(base_obj_oid)
@@ -50,14 +50,20 @@ class SNMPConverter(object):
         return (key, data)
 
     def hex_as_ip(self, obj, base_oid):
-        key, data = self.get_value(obj, base_oid)
+        key_obj_oid = obj[0]
+        base_obj_oid = base_oid[0].getOid()
+
+        base_interpolation = len(base_obj_oid)
+        key = str(key_obj_oid[base_interpolation:])
+
+        dirty_data = obj[1]
         out = []
         for i in range(4):
-            out.append('{}'.format(ord(data[i])))
+            out.append(str(dirty_data[i]))
         return (key, '.'.join(out))
 
     def convert_key_as_value(self, obj, base_oid):
-        key_obj_oid = obj[0].getOid()
+        key_obj_oid = obj[0]
         base_obj_oid = base_oid[0].getOid()
 
         base_interpolation = len(base_obj_oid)
@@ -70,7 +76,7 @@ class SNMPConverter(object):
         return (key, out)
 
     def convert_key_as_ip(self, obj, base_oid):
-        key_obj_oid = obj[0].getOid()
+        key_obj_oid = obj[0]
         base_obj_oid = base_oid[0].getOid()
 
         base_interpolation = len(base_obj_oid)
@@ -165,7 +171,7 @@ class SNMPQuerier(object):
             raise e
 
     @asyncio.coroutine
-    def query_asyncio(self, func, engine, community, hostname, context, oids, args):
+    def query_asyncio(self, method, func, engine, community, hostname, context, oids, args):
         data = []
         orig_oid = oids
         while 1:
@@ -175,7 +181,8 @@ class SNMPQuerier(object):
                     hostname,
                     context,
                     *args,
-                    oids)
+                    oids,
+                    lookupMib=False)
 
             if error_indicator:
                 logger.error('snmp error while fetching %s : %s', oid, error_indicator)
@@ -185,8 +192,8 @@ class SNMPQuerier(object):
                     errorStatus.prettyPrint(),
                 )
                 break
-            if not isinstance(output, list):
-                output = [output]
+            if method == "get":
+                return [output]
 
             for i in output:
                 logger.debug('compare %s with %s', orig_oid[0], i[0][0])
@@ -222,7 +229,7 @@ class SNMPQuerier(object):
                 raise ValueError('unknow method, should be get or walk')
             out_dict = {}
             logger.debug('start loop')
-            for output_elem in await self.query_asyncio(snmp_method, self._engine, community, hostname_obj,
+            for output_elem in await self.query_asyncio(query_type, snmp_method, self._engine, community, hostname_obj,
                                                         ContextData(), oid_obj, positionals_args
                                                                                    ):
                 obj = output_elem[0]
@@ -285,6 +292,7 @@ class SNMPQuerier(object):
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
             output = await self.query(oid, hostname, community, version, store_method, metric_type)
+            logger.info('update label for %s: %s %s', hostname, metric_name, metric_type)
             logger.debug(output)
             if metric_type == 'get':
                 self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
