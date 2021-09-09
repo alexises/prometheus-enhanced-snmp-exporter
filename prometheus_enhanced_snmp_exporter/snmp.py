@@ -44,7 +44,10 @@ class SNMPConverter(object):
 
         base_interpolation = len(base_obj_oid)
         key = str(key_obj_oid[base_interpolation:])
-        return (key, str(obj[1]))
+
+        dirty_data = str(obj[1])
+        data = ''.join(list(s for s in dirty_data if s.isprintable()))
+        return (key, data)
 
     def hex_as_ip(self, obj, base_oid):
         key, data = self.get_value(obj, base_oid)
