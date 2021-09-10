@@ -107,6 +107,13 @@ class PrometheusMetricStorage(threading.Thread):
     def run(self):
         self._server.serve_forever()
 
+    def is_ipv4(self, hostname):
+        try:
+            ipaddress.ip_address(hostname)
+            return True
+        except ValueError:
+            return False
+
     def start_http_server(self):
         with Configurator() as config:
             config.add_route('metric', self._uri)
@@ -119,6 +126,8 @@ class PrometheusMetricStorage(threading.Thread):
         port = int(hostname_component[1])
         if hostname == "":
             hostname = "::"
+        elif self.is_ipv4(hostname):
+            hostname = '::FFFF:' + hostname
 
         logger.info('bind to %s %s', hostname, port)
         self._server = make_server(hostname, port, app, WSGIServer_IPv6)
