@@ -14,6 +14,7 @@
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
 import time
+import ipaddress
 from wsgiref.simple_server import make_server, WSGIServer
 from pyramid.config import Configurator
 from pyramid.response import Response
