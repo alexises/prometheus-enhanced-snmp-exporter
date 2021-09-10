@@ -55,7 +55,7 @@ class PrometheusMetric():
         # to deal with thread safety we will avoid generator
         for label_str in list(sorted(self._labels.keys())):
             label_data = self._labels[label_str]
-            out += "{}{{{}}} {} [{}]\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
+            out += "{}{{{}}} {} {}\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
         return out
 
 
