@@ -18,6 +18,7 @@ import ipaddress
 from wsgiref.simple_server import make_server, WSGIServer
 from pyramid.config import Configurator
 from pyramid.response import Response
+from threading import Lock
 import socket
 import threading
 import logging
@@ -39,13 +40,28 @@ class PrometheusMetric():
         self._type = metric_type
         self._description = description
         self._labels = {}
+        self._locks = {}
+        self._hostname_check_lock = Lock()
 
-    def update_metric(self, labels, values):
+    def clear(self, hostname):
+        with self._hostname_check_lock:
+            if hostname not in self._locks:
+                self._locks[hostname] = Lock()
+        self._locks[hostname].acquire()
+        if hostname in self._labels:
+            del self._labels[hostname] 
+
+    def update_metric(self, hostname, labels, values):
         label_str = label_to_str(labels)
-        if label_str not in self._labels:
-            self._labels[label_str] = {}
-        self._labels[label_str]['metric'] = values
-        self._labels[label_str]['timestamp'] = int(time.time() * 1000)
+        if hostname not in self._labels:
+            self._labels[hostname] = {}
+        if label_str not in self._labels[hostname]:
+            self._labels[hostname][label_str] = {}
+        self._labels[hostname][label_str]['metric'] = values
+        self._labels[hostname][label_str]['timestamp'] = int(time.time() * 1000)
+
+    def release_update_lock(self, hostname):
+        self._locks[hostname].release()
 
     def metric_print(self):
         # first print header information
@@ -53,9 +69,11 @@ class PrometheusMetric():
 
         # next print metric lines
         # to deal with thread safety we will avoid generator
-        for label_str in list(sorted(self._labels.keys())):
-            label_data = self._labels[label_str]
-            out += "{}{{{}}} {} {}\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
+        for hostname in list(self._labels.keys()):
+            with self._locks[hostname]:
+                for label_str in list(sorted(self._labels[hostname].keys())):
+                    label_data = self._labels[hostname][label_str]
+                    out += "{}{{{}}} {} {}\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
         return out
 
 
