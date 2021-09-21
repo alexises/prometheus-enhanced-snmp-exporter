@@ -324,7 +324,7 @@ class SNMPQuerier(object):
                                                                                                              community):
             output = await self.query(oid, hostname, community, version, store_method, metric_type)
             logger.debug(output)
-            self._metrics.clear(hostname)
+            self._metrics.clear(hostname, metric_name)
             if metric_type == 'get':
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name,
                                                      template_label_value)
@@ -335,7 +335,7 @@ class SNMPQuerier(object):
                     labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value, output_index)
                     labels = {**host_config.static_labels, **labels}
                     self._metrics.update_metric(hostname, metric_name, labels, output_value)
-            self._metrics.release_update_lock(hostname)
+            self._metrics.release_update_lock(hostname, metric_name)
 
     async def warmup_template_cache(self, max_threads, scheduler):
         loop = asyncio.get_event_loop()

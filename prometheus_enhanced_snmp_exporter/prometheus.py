@@ -97,9 +97,15 @@ class PrometheusMetricStorage(threading.Thread):
     def add_metric(self, name, metric_type, description):
         self._metrics[name] = PrometheusMetric(name, metric_type, description)
 
-    def update_metric(self, metric_name, labels, value):
+    def clear(self, hostname, metric_name):
+        self._metrics[metric_name].clear(hostname)
+
+    def release_update_lock(self, hostname, metric_name):
+        self._metrics[metric_name].release_update_lock(hostname)
+
+    def update_metric(self, hostname, metric_name, labels, value):
         logger.info('update metric %s = %s, with labels %s', metric_name, value, labels)
-        self._metrics[metric_name].update_metric(labels, value)
+        self._metrics[metric_name].update_metric(hostname, labels, value)
 
     def metric_print(self):
         out = ""
