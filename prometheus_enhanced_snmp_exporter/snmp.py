@@ -38,55 +38,48 @@ class SNMPConverter(object):
             "hex-as-ip": self.hex_as_ip
         }
 
-    def get_value(self, obj, base_oid):
+    def convert(self, store_method, obj, base_oid, oid_suffix):
         key_obj_oid = obj[0]
         base_obj_oid = base_oid[0].getOid()
 
         base_interpolation = len(base_obj_oid)
-        key = str(key_obj_oid[base_interpolation:])
+        key = key_obj_oid[base_interpolation:]
 
-        dirty_data = str(obj[1])
+        if str(key).endswith(oid_suffix):
+            component = oid_suffix.count('.')
+            if component > 0:
+                logger.error("test key 1 %s", key)
+                key = key[:-component]
+                logger.error("test key 2 %s", key)
+        else:
+            return (None, None)
+
+        raw_value = obj[1]
+        data = self._obj[store_method](raw_value, key)
+        return (str(key), data)
+
+
+    def get_value(self, raw_value, key):
+        dirty_data = str(raw_value)
         data = ''.join(list(s for s in dirty_data if s.isprintable()))
-        return (key, data)
+        return data
 
-    def hex_as_ip(self, obj, base_oid):
-        key_obj_oid = obj[0]
-        base_obj_oid = base_oid[0].getOid()
-
-        base_interpolation = len(base_obj_oid)
-        key = str(key_obj_oid[base_interpolation:])
-
-        dirty_data = obj[1]
+    def hex_as_ip(self, raw_value, key):
         out = []
         for i in range(4):
-            out.append(str(dirty_data[i]))
-        return (key, '.'.join(out))
+            out.append(str(raw_value[i]))
+        return '.'.join(out)
 
-    def convert_key_as_value(self, obj, base_oid):
-        key_obj_oid = obj[0]
-        base_obj_oid = base_oid[0].getOid()
-
-        base_interpolation = len(base_obj_oid)
-        size = int(key_obj_oid[base_interpolation])
+    def convert_key_as_value(self, raw_value, key):
+        size = int(key[0])
         out = ""
         for i in range(size):
-            out += chr(key_obj_oid[base_interpolation + i + 1])
+            out += chr(key[i + 1])
+        logger.error('out :%s', out)
+        return out
 
-        key = str(key_obj_oid[base_interpolation:])
-        return (key, out)
-
-    def convert_key_as_ip(self, obj, base_oid):
-        key_obj_oid = obj[0]
-        base_obj_oid = base_oid[0].getOid()
-
-        base_interpolation = len(base_obj_oid)
-
-        key = str(key_obj_oid[base_interpolation:])
-        val = str(key_obj_oid[-4:])
-        return (key, val)
-
-    def __getitem__(self, key):
-        return self._obj[key]
+    def convert_key_as_ip(self, raw_value, key):
+        return  str(key[-4:])
 
     def _snmp_obj_to_str(self, data):
         if isinstance(data, Null):
@@ -185,7 +178,7 @@ class SNMPQuerier(object):
                     lookupMib=False)
 
             if error_indicator:
-                logger.error('snmp error while fetching %s : %s', oid, error_indicator)
+                logger.error('snmp error while fetching %s : %s', oids, error_indicator)
                 break
             elif error_status:
                 logger.error('%s',
@@ -208,7 +201,7 @@ class SNMPQuerier(object):
             oids = output[-1][0]
 
 
-    async def query(self, oid, hostname, community, version, store_method, query_type='get'):
+    async def query(self, oid, hostname, community, version, store_method, oid_suffix, query_type='get'):
         logger.debug('check for OID  %s(%s) on %s with %s', oid, query_type, hostname, community)
         if version == 'v2c' or version == 2:
             mpmodel = 1
@@ -234,7 +227,9 @@ class SNMPQuerier(object):
                                                                                    ):
                 obj = output_elem[0]
                 logger.debug('query_result: %s', str(obj))
-                key, val = self.converter[store_method](obj, oid_obj)
+                key, val = self.converter.convert(store_method, obj, oid_obj, oid_suffix)
+                if key is None:
+                    continue
                 out_dict[key] = val
 
             logger.debug('output data: %s', out_dict)
@@ -261,9 +256,10 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         store_method = metric.store_method
+        oid_suffix = metric.oid_suffix
 
         logger.info('update template label for %s: %s', hostname, metric_name)
-        output = await self.query(oid, hostname, community, version, store_method, metric_type)
+        output = await self.query(oid, hostname, community, version, store_method, oid_suffix, metric_type)
         logger.debug(output)
         if metric_type == 'get':
             self._template_storage.set_label(hostname, module_name, template_group_name, output)
@@ -285,13 +281,14 @@ class SNMPQuerier(object):
         # community_resolution
         template_name = metric.template_name
         template = metric.community_template
+        oid_suffix = metric.oid_suffix
 
         logger.debug('template_name %s and template %s', template_name, template)
         # resolve community
         for community, template_label_name, template_label_value in \
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
-            output = await self.query(oid, hostname, community, version, store_method, metric_type)
+            output = await self.query(oid, hostname, community, version, store_method, oid_suffix, metric_type)
             logger.info('update label for %s: %s %s', hostname, metric_name, metric_type)
             logger.debug(output)
             if metric_type == 'get':
@@ -312,6 +309,7 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         store_method = metric.store_method
+        oid_suffix = metric.oid_suffix
         # community_resolution
         template_name = metric.template_name
         template = metric.community_template
@@ -322,7 +320,7 @@ class SNMPQuerier(object):
                                                                                                              template_name,
                                                                                                              template,
                                                                                                              community):
-            output = await self.query(oid, hostname, community, version, store_method, metric_type)
+            output = await self.query(oid, hostname, community, version, store_method, oid_suffix, metric_type)
             logger.debug(output)
             self._metrics.clear(hostname, metric_name)
             if metric_type == 'get':

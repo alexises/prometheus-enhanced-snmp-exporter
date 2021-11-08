@@ -143,12 +143,14 @@ class OIDConfiguration(object):
         self.template_name = template_name
         self.community_template = community_template
         self.store_method = store_method
+        self.oid_suffix = ''
         if isinstance(config, str):
             self.oid = config
             self.every = default_every
         elif isinstance(config, dict):
             try:
                 self.oid = config['oid']
+                self.oid_suffix = config.get('oid_suffix', '')
             except ValueError:
                 logger.info('oid argument is required')
                 raise BadConfigurationException()
@@ -254,8 +256,7 @@ class ModuleConfiguration(object):
                     metric_obj = MetricOIDConfiguration(metric_name, metric_data, metric_every,
                                                         query_type, 'metrics',
                                                         template_name, community_template,
-                                                        store_method,
-                                                        metric.get('append_tags', []))
+                                                        store_method, metric.get('append_tags', []))
                     self.metrics.append(metric_obj)
         except ValueError:
             logger.error('metric attribute should be a list')

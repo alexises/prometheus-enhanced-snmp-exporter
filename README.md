@@ -122,6 +122,51 @@ modules:
 
 ```
 
+#### Extra metrics manipulations
+
+Sometime you need to do more complex stuff with metrics, so the syntax is as this
+
+```
+modules:
+  my_module:
+    metrics:
+      - type: walk # type of snmp query, get or walk
+        every: 1m # delay between 2 query
+        template_label: vrf # optional attribue, reference to template group for vrf aware metrics
+        mappings:
+          metric_1: <oid>
+          metric_2: 
+            oid: <oid>
+            store_method: value # optional, method how to store data, will be descripted below
+            oid_suffix: "" # optional, suffix to remove before we do the key reconciliation 
+        append_tags:
+          - .my_label_group
+```
+
+##### Store methods
+
+Sometime, we need to convert output before storing the attribute, it can be acheaved with these currently provided method :
+
+* `subtree-as-string`: convert OID subpath as a Length value
+* `subtree-as-ip`: convert subpath as an ipv4 address 
+* `value`: use value as this
+* `hex-as-ip`: transform hexadecimal value into an ipv4 addrees
+
+##### Oid suffix
+
+Some oid, have it's relevent merging key in the middle of the oid string. For example 
+
+```
+ARISTA-BGP4V2-MIB::aristaBgp4V2PeerLocalAs.1.ipv4."1.2.3." = Gauge32: 65000
+ARISTA-BGP4V2-MIB::aristaBgp4V2PrefixInPrefixesAccepted.1.ipv4."1.2.3.4".ipv4.unicast = Gauge32: 0
+``` 
+
+On the first metric, the corresponding join key for `local_as` key is "1.2.3.4", in fact is coded as `4.1.2.3.4` in oid path.
+
+before making the join, the `oid_suffix` allow to remove the `ipv4.unicast` (in fact oid `.1.1`) before joining or storing the labels. 
+
+Please note, that when using the parameter, in fact walk operation will get a bunch of uneeded key that will be dropped if no match is found with the `suffix_oid`.
+
 ### Description
 
 Description section let you configure the metrics name, help message and metric type
