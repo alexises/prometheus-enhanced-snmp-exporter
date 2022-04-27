@@ -15,6 +15,7 @@
 
 import time
 import ipaddress
+from .driver import OutputDriver, label_to_str
 from wsgiref.simple_server import make_server, WSGIServer
 from pyramid.config import Configurator
 from pyramid.response import Response
@@ -24,15 +25,6 @@ import threading
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def label_to_str(labels):
-    labels_str = []
-    for label_name, label_value in sorted(labels.items()):
-        label_str = '{}="{}"'.format(label_name, label_value.replace('"', '\\"'))
-        labels_str.append(label_str)
-    return ', '.join(labels_str)
-
 
 class PrometheusMetric():
     def __init__(self, name, metric_type, description):
@@ -85,7 +77,7 @@ class WSGIServer_IPv6(WSGIServer):
 # prometheus_client that is more intended to add metric
 # on source code and not external metrics like this exporter
 # provides
-class PrometheusMetricStorage(threading.Thread):
+class PrometheusMetricStorage(threading.Thread, OutputDriver):
     def __init__(self, hostname, uri, storage, template_storage):
         threading.Thread.__init__(self)
         self._metrics = {}
@@ -139,7 +131,7 @@ class PrometheusMetricStorage(threading.Thread):
         except ValueError:
             return False
 
-    def start_http_server(self):
+    def start_serving(self):
         with Configurator() as config:
             config.add_route('metric', self._uri)
             config.add_route('dump_cache', '/dump')

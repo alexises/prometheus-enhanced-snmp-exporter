@@ -287,6 +287,19 @@ class ModulesConfiguration(object):
         return self._modules.keys()
 
 
+class PrometheusConfiguration(object):
+    def __init__(self, config):
+        self.listen = config.get('listen', ':9100')
+        self.path = config.get('path', '/metrics')
+        pass
+
+class InfluxDBConfiguration(object):
+    def __init__(self, config):
+        self.host = config['hostname']
+        self.db = config['db']
+        self.username = config['username']
+        self.password = config['password']
+
 class ParserConfiguration(object):
     def __init__(self, config):
         logger.debug(config)
@@ -294,6 +307,14 @@ class ParserConfiguration(object):
             self.hosts = HostsConfiguration(config['hosts'])
             logger.debug('hosts parsed')
             self.modules = ModulesConfiguration(config['modules'])
+            self.driver = config.get('driver', {}).get('name', 'prometheus')
+            if self.driver not in ('prometheus', 'influxdb'):
+                raise ValueError('Driver should be "prometheus" or "inflxudb"')
+            if self.driver == 'prometheus':
+                self.driver_config = PrometheusConfiguration(config.get('driver', {}).get('config', {}))
+            else:
+                self.driver_config = InfluxDBConfiguration(config.get('driver', {}).get('config', {}))
+
             logger.debug('modules parsed')
             self.descriptions = config['description']
         except KeyError as e:

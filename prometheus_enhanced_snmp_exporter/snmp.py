@@ -182,7 +182,7 @@ class SNMPQuerier(object):
                 break
             elif error_status:
                 logger.error('%s',
-                    errorStatus.prettyPrint(),
+                    error_status.prettyPrint(),
                 )
                 break
             if method == "get":

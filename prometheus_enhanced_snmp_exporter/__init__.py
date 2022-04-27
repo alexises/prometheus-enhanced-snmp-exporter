@@ -24,6 +24,7 @@ from .config import parse_config, BadConfigurationException
 from .snmp import SNMPQuerier
 from .storage import LabelStorage, TemplateStorage
 from .prometheus import PrometheusMetricStorage
+from .influxdb import InfluxDBDriver
 from .scheduler import JobScheduler
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,6 @@ def get_args(handler):
     parser.add_argument('-f', '--filename', help='configuration file to parse', default='snmp.yaml', required=False)
     parser.add_argument('-l', '--log-level', help='log level', default='info',
                         choices=['debug', 'info', 'warning', 'error'], required=False)
-    parser.add_argument('--listen', help='listen address', default=':9100', required=False)
-    parser.add_argument('--path', help='path used to expose metric', default='/metrics', required=False)
     parser.add_argument('-c', '--check', help="simply check config and exit", action='store_true', default=False,
                         required=False)
     parser.add_argument('-M', '--max-threads', help="maximum number of thread used for fetching", default=1, type=int)
@@ -70,6 +69,17 @@ def init_logger():
 
     return handler
 
+def create_metric(config, scheduler, storage, template_storage):
+    if config.driver == 'prometheus':
+        return PrometheusMetricStorage(config.driver_config.listen, 
+                                       config.driver.path, storage, template_storage)
+    else:
+        return InfluxDBDriver(scheduler, 
+                              config.driver_config.host,
+                              config.driver_config.db,
+                              config.driver_config.username,
+                              config.driver_config.password)
+        
 
 def main_without_scheduler():
     handler = init_logger()
@@ -91,9 +101,9 @@ def main_without_scheduler():
 
     storage = LabelStorage()
     template_storage = TemplateStorage()
-    metrics = PrometheusMetricStorage(arguments.listen, arguments.path, storage, template_storage)
-    querier = SNMPQuerier(config, storage, template_storage, metrics)
     scheduler = JobScheduler(arguments.max_threads)
+    metrics = create_metric(config, scheduler, storage, template_storage)
+    querier = SNMPQuerier(config, storage, template_storage, metrics)
 
     logger.info('warmup template cache')
     loop = asyncio.get_event_loop()
@@ -111,11 +121,9 @@ def main_without_scheduler():
 def main():
     metrics, scheduler = main_without_scheduler()
     logger.info('warmup done, now expose metrics')
-    metrics.start_http_server()
+    metrics.start_serving()
     logger.info('and finally, start scheduler')
     scheduler.start_scheduler()
-
-
 
 if __name__ == '__main__':
     main()
