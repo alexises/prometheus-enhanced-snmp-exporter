@@ -16,8 +16,12 @@
 from .driver import OutputDriver, label_to_str
 from datetime import datetime
 import math
-from influxdb_client.client.influxdb_client_async import InfluxDBClientAsync
+from influxdb import InfluxDBClient
+from datetime import datetime
+import threading
 import logging
+import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,7 @@ class InfluxDbRow():
     def update(self, key, value):
         if key not in self.values_updated:
             raise ValueError("invalid expeded value {} for this measurement".format(key))
-        self.values[key] = value
+        self.values[key] = float(value) # we need to perform casting here to have the proper type in inflox
         self.values_updated[key] = True
         if not self.is_edited():
             self.time = datetime.utcnow()
@@ -71,7 +75,7 @@ class InfluxDbRow():
         if self.is_edited:
             payload = {}
             payload['tags'] = self.labels
-            payload['measurement'] = measurement
+            payload['measurement'] = measurement.split('$')[0]
             payload['fields'] = self.values
             payload['time'] = self.time
             result.append(payload)
@@ -104,12 +108,10 @@ class InfluxDBMeasurement(object):
         self._changes = []
         return result
 
-class InfluxDBDriver(OutputDriver):
+class InfluxDBDriver(OutputDriver, threading.Thread):
     def __init__(self, scheduler, host, db, username, password):
-        self._host = host
-        self._db = db
-        self._username = username
-        self._password = password 
+        threading.Thread.__init__(self)
+        self._influx = InfluxDBClient(host=host, username=username, password=password, database=db) 
         self._storage = {}
         self._metric_to_mesurment = {}
         self._scheduler = scheduler
@@ -144,14 +146,30 @@ class InfluxDBDriver(OutputDriver):
         self._storage[measurement].update(hostname, labels, field_name, value)
 
     def start_serving(self):
-        self._scheduler.add_job(self._push_entry, 60)
+        logger.info('start influx loop')
+        self.start()
     
-    async def _push_entry(self):
+    def run(self):
+        try:
+            while True:
+                start_time = datetime.now()
+                logger.info('start push to influx')
+                self._push_entry()
+                end_time = datetime.now()
+                logger.info('end push to influx')
+                delta = (end_time - start_time)
+                sleep_time = 60 - delta.total_seconds()
+                logger.info('fuck')
+                if sleep_time < 0:
+                    continue
+                logger.info('next loop on {}'.format(sleep_time))
+                time.sleep(sleep_time)
+        except Exception as e:
+            logger.error(e)
+    
+    def _push_entry(self):
         data = []
         for measurement, store in self._storage.items():
             data += store.push_to_influx()
-        async with InfluxDBClientAsync(self._host, token=f'{self._username}:{self._password}', org='-') as client:
-            write_api = client.write_api()
-        
-            for chunck in grouped(data, 1000):
-                await write_api.write(bucket=f'{self._db}:autogen', record=chunck)
+        for chunck in grouped(data, 1000):
+            self._influx.write_points(chunck)

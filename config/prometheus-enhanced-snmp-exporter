@@ -16,12 +16,6 @@
 #LOG_LEVEL: level of logging
 LOG_LEVEL=info
 
-#LISTEN: adddress and port used for communication
-LISTEN=:::9100
-
-#PATH-ADDRESS: http path to get metrics
-PATH-ADDRESS=/metrics
-
 #MAX_THREADS: number of worker thread used for SNMP poller
 #if delay is shown, please considere incressing this value
 MAX_THREADS=4
