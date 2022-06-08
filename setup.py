@@ -47,7 +47,7 @@ setup(
     ],
     data_files=[
       ('/etc/prometheus-enhanced-exporter/', ['config/config.yaml']),
-      ('/etc/default/', ['config/prometheus-enhanced-exporter']),
+      ('/etc/default/', ['config/prometheus-enhanced-snmp-exporter']),
       ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
     ],
     entry_points={
@@ -57,3 +57,4 @@ setup(
     },
     cmdclass={'install': InstallSystemdService}
 )
+
