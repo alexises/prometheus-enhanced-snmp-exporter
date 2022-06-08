@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='prometheus-enhanced-snmp-exporter',
-    version='0.1alpha',
+    version='0.1alpha2',
     packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
@@ -32,7 +32,8 @@ setup(
     data_files=[
       ('/etc/prometheus-enhanced-exporter/', ['config.yaml']),
       ('/etc/default/', ['prometheus-enhanced-exporter']),
-      ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
+      ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service']),
+      ('', ['README.md'])
     ],
     entry_points={
         'console_scripts': [
