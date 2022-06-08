@@ -1,8 +1,23 @@
-from distutils.core import setup
+import os
+from subprocess import check_output
+from setuptools import setup
+from setuptools.command.install import install
+
+class InstallSystemdService(install):
+    """
+      Install as a systemd service and restart it
+    """
+
+    def run(self):
+        install.run(self)
+        current_dir_path = os.path.dirname(os.path.realpath(__file__))
+        create_service_script_path = os.path.join(current_dir_path, 'create_service.sh')
+        check_output([create_service_script_path])
+
 
 setup(
     name='prometheus-enhanced-snmp-exporter',
-    version='0.1alpha2',
+    version='0.2alpha',
     packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
@@ -27,7 +42,8 @@ setup(
         "pyramid >= 1.5",
         "pysnmp >= 4.2",
         "APScheduler >= 3.5",
-        "PyYAML >= 3.11"
+        "PyYAML >= 3.11",
+        "influxdb >= 5.0.2"
     ],
     data_files=[
       ('/etc/prometheus-enhanced-exporter/', ['config.yaml']),
@@ -40,4 +56,5 @@ setup(
             'prometheus-enhanced-exporter = prometheus_enhanced_exporter:main'
         ]
     },
+    cmdclass={'install': InstallSystemdService}
 )
