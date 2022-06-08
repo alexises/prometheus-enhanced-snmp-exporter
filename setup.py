@@ -47,7 +47,7 @@ setup(
     ],
     data_files=[
       ('/etc/prometheus-enhanced-exporter/', ['config/config.yaml']),
-      ('/etc/default/', ['prometheus-enhanced-exporter']),
+      ('/etc/default/', ['config/prometheus-enhanced-exporter']),
       ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
     ],
     entry_points={
