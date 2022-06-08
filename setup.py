@@ -52,7 +52,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'prometheus-enhanced-exporter = prometheus_enhanced_exporter:main'
+            'prometheus-enhanced-snmp-exporter = prometheus_enhanced_snmp_exporter:main'
         ]
     },
     cmdclass={'install': InstallSystemdService}
