@@ -46,7 +46,7 @@ setup(
         "influxdb >= 5.0.2"
     ],
     data_files=[
-      ('/etc/prometheus-enhanced-exporter/', ['config.yaml']),
+      ('/etc/prometheus-enhanced-exporter/', ['config/config.yaml']),
       ('/etc/default/', ['prometheus-enhanced-exporter']),
       ('/usr/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service']),
       ('', ['README.md'])
