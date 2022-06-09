@@ -12,8 +12,8 @@ class InstallSystemdService(install):
         install.run(self)
         current_dir_path = os.path.dirname(os.path.realpath(__file__))
         create_service_script_path = os.path.join(current_dir_path, 'create_service.sh')
-        print(create_service_script_path)
-        check_output([create_service_script_path])
+        output = check_output(['/bin/bash', create_service_script_path])
+        print(output)
 
 
 setup(
