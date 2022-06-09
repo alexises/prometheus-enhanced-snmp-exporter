@@ -3,7 +3,7 @@ echo "> Start prometheus-enhanced-snmp-exporter install script"
 SYSTEMD_SCRIPT_DIR=$(cd $(dirname "${BASH_SOURCE:=$0}") && pwd)
 
 SYSTEMD_SERVICE_UNIT_FILE="prometheus-enhanced-snmp-exporter.service"
-USER=prometheus-enhanced-snmp-exporte
+USER=prometheus-enhanced-snmp-exporter
 
 
 # The unit file is copied via setup.py data_files
