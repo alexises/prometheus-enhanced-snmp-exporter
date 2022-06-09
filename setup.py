@@ -18,7 +18,7 @@ class InstallSystemdService(install):
 
 setup(
     name='prometheus-enhanced-snmp-exporter',
-    version='0.2alpha',
+    version='0.2alpha2',
     packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
@@ -47,7 +47,7 @@ setup(
         "influxdb >= 5.0.2"
     ],
     data_files=[
-      ('/etc/prometheus-enhanced-exporter/', ['config/config.yaml']),
+      ('/etc/prometheus-enhanced-snmp-exporter/', ['config/config.yaml']),
       ('/etc/default/', ['config/prometheus-enhanced-snmp-exporter']),
       ('/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
     ],

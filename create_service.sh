@@ -11,20 +11,20 @@ chown root:root /lib/systemd/system/${SYSTEMD_SERVICE_UNIT_FILE}
 if ! $(getent group prometheus-snmp-exporter >/dev/null)
 then
   echo "> Create group prometheus-snmp-exporter"
-  groupadd prometheus-snmp-exporter
+  groupadd prometheus-enhanced-snmp-exporter
 fi
 
 if ! $(getent passwd prometheus-snmp-exporter >/dev/null)
 then
-  groupadd prometheus-snmp-exporter
+  groupadd prometheus-enhanced-snmp-exporter
   echo "> Add user prometheus-snmp-exporter"
-  useradd -Ur prometheus-snmp-exporter
+  useradd -r prometheus-enhanced-snmp-exporter -g prometheus-enhanced-snmp-exporter -m -d /var/lib/prometheus-enhanced-snmp-exporter
 fi
 
 echo "> Update right on /etc/prometheus-enhanced-snmp-exporter/*"
 
-chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-exporter/
-chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-exporter/config.yaml
+chown root:prometheus-enhanced-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/
+chown root:prometheus-enhanced-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/config.yaml
 
 echo "> Reload systemd"
 systemctl daemon-reload
