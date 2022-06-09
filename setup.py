@@ -18,7 +18,7 @@ class InstallSystemdService(install):
 
 setup(
     name='prometheus-enhanced-snmp-exporter',
-    version='0.2alpha7',
+    version='0.2alpha8',
     packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',
@@ -49,7 +49,7 @@ setup(
     data_files=[
       ('/etc/prometheus-enhanced-snmp-exporter/', ['config/config.yaml']),
       ('/etc/default/', ['config/prometheus-enhanced-snmp-exporter']),
-      ('/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter.service'])
+      ('/lib/systemd/system/', ['config/prometheus-enhanced-snmp-exporter@.service'])
     ],
     entry_points={
         'console_scripts': [
