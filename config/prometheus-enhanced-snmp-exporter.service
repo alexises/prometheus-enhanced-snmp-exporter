@@ -23,8 +23,7 @@ Restart=on-failure
 User=prometheus-snmp-exporter
 Group=prometheus-snmp-exporter
 EnvironmentFile=-/etc/default/prometheus-enhanced-snmp-exporter
-ExecStart=/usr/bin/python3 /usr/bin/prometheus-enhanced-snmp-exporter --filename /etc/prometheus-enhanced-snmp-exporter/config.yaml --log-level $LOG_LEVEL --max-threads $MAX_THREADS
+ExecStart=/usr/bin/python3 /usr/local/bin/prometheus-enhanced-snmp-exporter --filename /etc/prometheus-enhanced-snmp-exporter/config.yaml --log-level $LOG_LEVEL --max-threads $MAX_THREADS
 
 [Install]
 WantedBy=multi-user.target
-
