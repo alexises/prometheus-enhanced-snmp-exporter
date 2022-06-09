@@ -29,8 +29,3 @@ chown root:${USER} /etc/prometheus-enhanced-snmp-exporter/config.yaml
 echo "> Reload systemd"
 systemctl daemon-reload
 
-echo "> Enable ${SYSTEMD_SERVICE_UNIT_FILE}"
-systemctl enable ${SYSTEMD_SERVICE_UNIT_FILE}
-
-echo "> Restart ${SYSTEMD_SERVICE_UNIT_FILE}"
-systemctl restart ${SYSTEMD_SERVICE_UNIT_FILE}
