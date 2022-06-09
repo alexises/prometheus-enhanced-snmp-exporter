@@ -9,11 +9,10 @@ class InstallSystemdService(install):
     """
 
     def run(self):
-        print("Start custom install")
         install.run(self)
         current_dir_path = os.path.dirname(os.path.realpath(__file__))
-        print("Launch create_service.sh")
         create_service_script_path = os.path.join(current_dir_path, 'create_service.sh')
+        print(create_service_script_path)
         check_output([create_service_script_path])
 
 
