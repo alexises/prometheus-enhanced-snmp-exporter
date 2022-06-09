@@ -4,26 +4,27 @@ SYSTEMD_SCRIPT_DIR=$(cd $(dirname "${BASH_SOURCE:=$0}") && pwd)
 
 SYSTEMD_SERVICE_UNIT_FILE="prometheus-enhanced-snmp-exporter.service"
 
+
 # The unit file is copied via setup.py data_files
 chown root:root /lib/systemd/system/${SYSTEMD_SERVICE_UNIT_FILE}
 
-if ! $(getent group prometheus-enhanced-snmp-exporter >/dev/null)
+if ! $(getent group prometheus-snmp-exporter >/dev/null)
 then
-  echo "> Create group prometheus-enhanced-snmp-exporter"
-  groupadd prometheus-enhanced-snmp-exporter
+  echo "> Create group prometheus-snmp-exporter"
+  groupadd prometheus-snmp-exporter
 fi
 
-if ! $(getent passwd prometheus-enhanced-snmp-exporter >/dev/null)
+if ! $(getent passwd prometheus-snmp-exporter >/dev/null)
 then
-  groupadd prometheus-enhanced-snmp-exporter
-  echo "> Add user prometheus-enhanced-snmp-exporter"
-  useradd -Ur prometheus-enhanced-snmp-exporter
+  groupadd prometheus-snmp-exporter
+  echo "> Add user prometheus-snmp-exporter"
+  useradd -Ur prometheus-snmp-exporter
 fi
 
 echo "> Update right on /etc/prometheus-enhanced-snmp-exporter/*"
 
-chown root:prometheus-enhanced-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/
-chown root:prometheus-enhanced-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/config.yaml
+chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/
+chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/config.yaml
 
 echo "> Reload systemd"
 systemctl daemon-reload

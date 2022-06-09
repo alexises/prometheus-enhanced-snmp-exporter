@@ -20,8 +20,8 @@ Documentation=https://github.com/alexises/prometheus-enhanced-snmp-exporter
 [Service]
 Type=simple
 Restart=on-failure
-User=prometheus-enhanced-snmp-exporter
-Group=prometheus-enhanced-snmp-exporter
+User=prometheus-snmp-exporter
+Group=prometheus-snmp-exporter
 EnvironmentFile=-/etc/default/prometheus-enhanced-snmp-exporter
 ExecStart=/usr/bin/python3 /usr/bin/prometheus-enhanced-snmp-exporter --filename /etc/prometheus-enhanced-snmp-exporter/config.yaml --log-level $LOG_LEVEL --max-threads $MAX_THREADS
 
