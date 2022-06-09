@@ -10,7 +10,7 @@ chown root:root /lib/systemd/system/${SYSTEMD_SERVICE_UNIT_FILE}
 if ! $(getent passwd prometheus-enhanced-snmp-exporter >/dev/null)
 then
   echo "> Add user prometheus-enhanced-snmp-exporter"
-  useradd -Ur  "prometheus-enhanced-snmp-exporter"
+  useradd -Ur "prometheus-enhanced-snmp-exporter"
 fi
 
 echo "> Update right on /etc/prometheus-enhanced-snmp-exporter/*"
