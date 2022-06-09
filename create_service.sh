@@ -23,8 +23,8 @@ fi
 
 echo "> Update right on /etc/prometheus-enhanced-snmp-exporter/*"
 
-chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/
-chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-snmp-exporter/config.yaml
+chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-exporter/
+chown root:prometheus-snmp-exporter /etc/prometheus-enhanced-exporter/config.yaml
 
 echo "> Reload systemd"
 systemctl daemon-reload
