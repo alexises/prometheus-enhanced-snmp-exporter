@@ -16,6 +16,7 @@
 import yaml
 import yaml.scanner
 import logging
+import re
 logger = logging.getLogger(__name__)
 
 
@@ -144,6 +145,7 @@ class OIDConfiguration(object):
         self.community_template = community_template
         self.store_method = store_method
         self.oid_suffix = ''
+        self.filter_expr = None
         if isinstance(config, str):
             self.oid = config
             self.every = default_every
@@ -151,6 +153,7 @@ class OIDConfiguration(object):
             try:
                 self.oid = config['oid']
                 self.oid_suffix = config.get('oid_suffix', '')
+                self.filter_expr = config.get('filter', None)
             except ValueError:
                 logger.info('oid argument is required')
                 raise BadConfigurationException()
@@ -161,6 +164,8 @@ class OIDConfiguration(object):
             self.every = timerange_to_second(self.every)
         except ValueError:
             raise BadConfigurationException()
+        if self.filter_expr is not None:
+            self.filter_expr = re.compile(self.filter_expr)
 
     def __repr__(self):
         return '{}->{} [{}s]'.format(self.name, self.oid, self.every)
@@ -227,16 +232,10 @@ class ModuleConfiguration(object):
                 if community_template is not None:
                     community_template = community_template.community_template
                 for label_name, label_data in label_group['mappings'].items():
-                    if isinstance(label_data, str):
-                        oid = label_data
-                        label_store_method = store_method
-                    else:
-                        oid = label_data['oid']
-                        label_store_method = label_data.get('store_method', store_method)
-                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, oid,
+                    self.labels_group[label_group_name][label_name] = OIDConfiguration(label_name, label_data,
                                                                                        label_every, query_type, 'label',
                                                                                        template_name, community_template,
-                                                                                       label_store_method)
+                                                                                       store_method)
         except ValueError:
             logger.error('label attribute should be a dict')
             raise BadConfigurationException()

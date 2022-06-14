@@ -138,7 +138,10 @@ class LabelStorage(object):
                    not isinstance(value, dict):
                     labels[label] = value
                 else:
-                    labels[label] = value.get(walk_idx, "")
+                    labels[label] = value.get(walk_idx, None)
+                    # no value for specific id, we should considere it as filtered
+                    if labels[label] is None:
+                        return {}
         return labels
 
     def dump(self):
