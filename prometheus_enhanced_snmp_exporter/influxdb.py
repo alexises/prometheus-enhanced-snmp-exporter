@@ -48,6 +48,7 @@ class InfluxDbRow():
     def update(self, key, value):
         if key not in self.values_updated:
             raise ValueError("invalid expeded value {} for this measurement".format(key))
+        logger.debug('updated values {}'.format(value))
         self.values[key] = float(value) # we need to perform casting here to have the proper type in inflox
         self.values_updated[key] = True
         if not self.is_edited():

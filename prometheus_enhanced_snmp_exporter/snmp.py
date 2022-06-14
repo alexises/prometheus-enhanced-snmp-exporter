@@ -23,6 +23,7 @@ from pysnmp.proto.rfc1902 import Integer32, Integer, Counter32, Gauge32, Unsigne
 from pysnmp.proto.rfc1905 import endOfMibView
 from pyasn1.type.univ import Null
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -278,6 +279,7 @@ class SNMPQuerier(object):
         metric_type = metric.type
         oid = metric.oid
         store_method = metric.store_method
+        filter_expr = metric.filter_expr
         # community_resolution
         template_name = metric.template_name
         template = metric.community_template
@@ -292,10 +294,13 @@ class SNMPQuerier(object):
             logger.info('update label for %s: %s %s', hostname, metric_name, metric_type)
             logger.debug(output)
             if metric_type == 'get':
-                self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
-                template_label_value, output)
+                if not filter_expr or filter_expr.match(val):
+                    self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
+                    template_label_value, output)
             else:
                 for key, val in output.items():
+                    if filter_expr and not filter_expr.match(val):
+                        continue
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val,
                                             template_label_name, template_label_value, key)
 
@@ -327,15 +332,24 @@ class SNMPQuerier(object):
                 labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name,
                                                      template_label_value)
                 labels = {**host_config.static_labels, **labels}
-                self._metrics.update_metric(hostname, metric_name, labels, output)
+                if output == "":
+                    logger.warning('no output for {}, skip it'.format(labels))
+                else:
+                    self._metrics.update_metric(hostname, metric_name, labels, output)
             else:
                 for output_index, output_value in output.items():
                     labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value, output_index)
+                    if labels == {}:
+                        # labels are filtered, just skip the update
+                        continue
+                    if output_value == "":
+                        logger.warning('no output for {}, skip it'.format(labels))
+                        continue
                     labels = {**host_config.static_labels, **labels}
                     self._metrics.update_metric(hostname, metric_name, labels, output_value)
             self._metrics.release_update_lock(hostname, metric_name)
 
-    async def warmup_template_cache(self, max_threads, scheduler):
+    async def warmup_template_cache(self, max_threads : int, scheduler) -> None:
         loop = asyncio.get_event_loop()
         futurs = []
         for host_config in self._config.hosts:
@@ -353,7 +367,7 @@ class SNMPQuerier(object):
                     logger.error('error on template warmup')
                     logger.exception("details", e)
 
-    async def warmup_label_cache(self, max_threads, scheduler):
+    async def warmup_label_cache(self, max_threads : int, scheduler) -> None:
         loop = asyncio.get_event_loop()
         futurs = []
         for host_config in self._config.hosts:
