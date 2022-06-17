@@ -17,6 +17,7 @@ import yaml
 import yaml.scanner
 import logging
 import re
+from typing import List, Dict, Iterator, Tuple
 logger = logging.getLogger(__name__)
 
 
@@ -25,17 +26,17 @@ class BadConfigurationException(Exception):
 
 
 __timerange_multiplier = {
-  's': 1,
-  'm': 60,
-  'h': 3600,
-  'd': 86400,
-  'w': 604800,
-  'M': 2592000,
-  'y': 31536000,
+    's': 1,
+    'm': 60,
+    'h': 3600,
+    'd': 86400,
+    'w': 604800,
+    'M': 2592000,
+    'y': 31536000,
 }
 
 
-def timerange_to_second(timerange):
+def timerange_to_second(timerange: int):
     try:
         value = int(timerange[:-1])
         multiplier = timerange[-1]
@@ -49,7 +50,7 @@ def timerange_to_second(timerange):
         raise e
 
 
-def parse_config(filename):
+def parse_config(filename: str):
     try:
         with open(filename) as e:
             logger.info('start config parsing')
@@ -66,7 +67,7 @@ def parse_config(filename):
 
 
 class HostConfiguration(object):
-    def __init__(self, config):
+    def __init__(self, config: Dict):
         try:
             self.hostname = config['hostname']
         except KeyError:
@@ -96,7 +97,7 @@ class HostConfiguration(object):
             logger.error('config element modules should be a list')
             raise BadConfigurationException()
 
-    def _resolve_module(self, modules):
+    def _resolve_module(self, modules: Dict):
         for module_name in self._modules_unresolved:
             logger.debug('resolving %s', module_name)
             if module_name not in modules.keys():
@@ -118,18 +119,19 @@ class HostConfiguration(object):
 
 
 class HostsConfiguration(object):
-    def __init__(self, config):
-        self._hosts = []
+    def __init__(self, config: Dict):
+        self._hosts = []  # type: List
         try:
             for host in config:
                 self._hosts.append(HostConfiguration(host))
         except TypeError:
-            raise BadConfigurationException('hosts attribute should be a lists')
+            raise BadConfigurationException(
+                'hosts attribute should be a lists')
 
     def __getitem__(self, key):
         return self._hosts[key]
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[str, HostConfiguration]]:
         return self._hosts.items()
 
     def hes_key(self, key):
@@ -137,7 +139,7 @@ class HostsConfiguration(object):
 
 
 class OIDConfiguration(object):
-    def __init__(self, name, config, default_every, query_type, action, template_name, community_template, store_method):
+    def __init__(self, name: str, config: Dict, default_every: str, query_type: str, action: str, template_name: str, community_template: str, store_method: str):
         self.action = action
         self.name = name
         self.type = query_type
@@ -154,6 +156,7 @@ class OIDConfiguration(object):
                 self.oid = config['oid']
                 self.oid_suffix = config.get('oid_suffix', '')
                 self.filter_expr = config.get('filter', None)
+                self.store_method = config.get('store_method', store_method)
             except ValueError:
                 logger.info('oid argument is required')
                 raise BadConfigurationException()
@@ -184,8 +187,9 @@ class ModuleConfiguration(object):
     def _get_type(config):
         try:
             query_type = config['type']
-            if query_type not in ['get', 'walk', "community_walk"]:
-                logger.error('type attribut should be "get", "walk" or "community_walk"')
+            if query_type not in ['get', 'walk', "community_walk", "join"]:
+                logger.error(
+                    'type attribut should be "get", "walk", "community_walk" or "join"')
                 raise BadConfigurationException()
             return query_type
         except KeyError:
@@ -209,7 +213,8 @@ class ModuleConfiguration(object):
                 store_method = template_label.get('store_method', 'value')
 
                 template_name = template_label_name
-                community_template = template_label.get('community_template', None)
+                community_template = template_label.get(
+                    'community_template', None)
                 self.template_label[template_label_name] = OIDConfiguration(template_label_name, template_label['mapping'],
                                                                             label_every, query_type, 'templated_label',
                                                                             template_name, community_template,
@@ -228,7 +233,8 @@ class ModuleConfiguration(object):
                 self.labels_group[label_group_name] = {}
 
                 template_name = label_group.get('template_label', "")
-                community_template = self.template_label.get(template_name, None)
+                community_template = self.template_label.get(
+                    template_name, None)
                 if community_template is not None:
                     community_template = community_template.community_template
                 for label_name, label_data in label_group['mappings'].items():
@@ -248,7 +254,8 @@ class ModuleConfiguration(object):
                 store_method = metric.get('store_method', 'value')
 
                 template_name = metric.get('template_label', "")
-                community_template = self.template_label.get(template_name, None)
+                community_template = self.template_label.get(
+                    template_name, None)
                 if community_template is not None:
                     community_template = community_template.community_template
                 for metric_name, metric_data in metric['mappings'].items():
@@ -267,7 +274,8 @@ class ModulesConfiguration(object):
         self._modules = {}
         try:
             for module_name, module_data in config.items():
-                self._modules[module_name] = ModuleConfiguration(module_data, module_name)
+                self._modules[module_name] = ModuleConfiguration(
+                    module_data, module_name)
         except TypeError:
             logger.error('modules key should be a dict')
             logger.exception('detail')
@@ -292,12 +300,14 @@ class PrometheusConfiguration(object):
         self.path = config.get('path', '/metrics')
         pass
 
+
 class InfluxDBConfiguration(object):
     def __init__(self, config):
         self.host = config['hostname']
         self.db = config['db']
         self.username = config['username']
         self.password = config['password']
+
 
 class ParserConfiguration(object):
     def __init__(self, config):
@@ -310,14 +320,17 @@ class ParserConfiguration(object):
             if self.driver not in ('prometheus', 'influxdb'):
                 raise ValueError('Driver should be "prometheus" or "inflxudb"')
             if self.driver == 'prometheus':
-                self.driver_config = PrometheusConfiguration(config.get('driver', {}).get('config', {}))
+                self.driver_config = PrometheusConfiguration(
+                    config.get('driver', {}).get('config', {}))
             else:
-                self.driver_config = InfluxDBConfiguration(config.get('driver', {}).get('config', {}))
+                self.driver_config = InfluxDBConfiguration(
+                    config.get('driver', {}).get('config', {}))
 
             logger.debug('modules parsed')
-            self.descriptions = config['description']
+            self.descriptions = config['description']  # type: Dict
         except KeyError as e:
-            logger.error('section {} not present, config useless'.format(e.args[0]))
+            logger.error(
+                'section {} not present, config useless'.format(e.args[0]))
             raise BadConfigurationException()
 
         for host in self.hosts:

@@ -20,7 +20,7 @@ import logging
 import sys
 from datetime import datetime
 
-from .config import parse_config, BadConfigurationException
+from .config import ParserConfiguration, parse_config, BadConfigurationException
 from .snmp import SNMPQuerier
 from .storage import LabelStorage, TemplateStorage
 from .prometheus import PrometheusMetricStorage
@@ -33,12 +33,14 @@ logger = logging.getLogger(__name__)
 def get_args(handler):
     ''' argparse : parse std input '''
     parser = argparse.ArgumentParser(description='Prometheus SNMP exporter')
-    parser.add_argument('-f', '--filename', help='configuration file to parse', default='snmp.yaml', required=False)
+    parser.add_argument('-f', '--filename', help='configuration file to parse',
+                        default='snmp.yaml', required=False)
     parser.add_argument('-l', '--log-level', help='log level', default='info',
                         choices=['debug', 'info', 'warning', 'error'], required=False)
     parser.add_argument('-c', '--check', help="simply check config and exit", action='store_true', default=False,
                         required=False)
-    parser.add_argument('-M', '--max-threads', help="maximum number of thread used for fetching", default=1, type=int)
+    parser.add_argument('-M', '--max-threads',
+                        help="maximum number of thread used for fetching", default=1, type=int)
     args = parser.parse_args()
 
     if args.log_level == "debug":
@@ -69,17 +71,18 @@ def init_logger():
 
     return handler
 
-def create_metric(config, scheduler, storage, template_storage):
+
+def create_metric(config: ParserConfiguration, scheduler: JobScheduler, storage: LabelStorage, template_storage: TemplateStorage):
     if config.driver == 'prometheus':
-        return PrometheusMetricStorage(config.driver_config.listen, 
-                                       config.driver.path, storage, template_storage)
+        return PrometheusMetricStorage(config.driver_config.listen,
+                                       config.driver_config.path, storage, template_storage)
     else:
-        return InfluxDBDriver(scheduler, 
+        return InfluxDBDriver(scheduler,
                               config.driver_config.host,
                               config.driver_config.db,
                               config.driver_config.username,
                               config.driver_config.password)
-        
+
 
 def main_without_scheduler():
     handler = init_logger()
@@ -107,16 +110,23 @@ def main_without_scheduler():
 
     logger.info('warmup template cache')
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(querier.warmup_template_cache(arguments.max_threads, scheduler))
+    loop.run_until_complete(querier.warmup_template_cache(
+        arguments.max_threads, scheduler))
     logger.info('warmup label cache (%s threads)', arguments.max_threads)
-    loop.run_until_complete(querier.warmup_label_cache(arguments.max_threads, scheduler))
+    loop.run_until_complete(querier.warmup_label_cache(
+        arguments.max_threads, scheduler))
+    logger.info('warmup join cache')
+    querier.warmup_join_cache()
     logger.info('warmup metric (%s threads)', arguments.max_threads)
     for metric_name, metric_data in config.descriptions.items():
-        metrics.add_metric(metric_name, metric_data['type'], metric_data['description'])
-    loop.run_until_complete(querier.warmup_metrics(arguments.max_threads, scheduler))
+        metrics.add_metric(
+            metric_name, metric_data['type'], metric_data['description'])
+    loop.run_until_complete(querier.warmup_metrics(
+        arguments.max_threads, scheduler))
     end_time = datetime.now()
     logger.info('Initalization duration : %s', end_time - start_time)
     return (metrics, scheduler)
+
 
 def main():
     metrics, scheduler = main_without_scheduler()
@@ -124,6 +134,7 @@ def main():
     metrics.start_serving()
     logger.info('and finally, start scheduler')
     scheduler.start_scheduler()
+
 
 if __name__ == '__main__':
     main()
