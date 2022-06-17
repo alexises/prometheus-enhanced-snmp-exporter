@@ -16,6 +16,7 @@
 import time
 import ipaddress
 from .driver import OutputDriver, label_to_str
+from .storage import LabelStorage, TemplateStorage
 from wsgiref.simple_server import make_server, WSGIServer
 from pyramid.config import Configurator
 from pyramid.response import Response
@@ -23,41 +24,45 @@ from threading import Lock
 import socket
 import threading
 import logging
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
+
 class PrometheusMetric():
-    def __init__(self, name, metric_type, description):
+    def __init__(self, name: str, metric_type: str, description: str) -> None:
         self._name = name
         self._type = metric_type
         self._description = description
-        self._labels = {}
-        self._locks = {}
+        self._labels = {}  # type: Dict[str, Dict[str, Dict[str, Dict]]]
+        self._locks = {}  # type: Dict[str, Lock]
         self._hostname_check_lock = Lock()
 
-    def clear(self, hostname):
+    def clear(self, hostname: str) -> None:
         with self._hostname_check_lock:
             if hostname not in self._locks:
                 self._locks[hostname] = Lock()
         self._locks[hostname].acquire()
         if hostname in self._labels:
-            del self._labels[hostname] 
+            del self._labels[hostname]
 
-    def update_metric(self, hostname, labels, values):
+    def update_metric(self, hostname: str, labels: Dict[str, str], values: float) -> None:
         label_str = label_to_str(labels)
         if hostname not in self._labels:
             self._labels[hostname] = {}
         if label_str not in self._labels[hostname]:
             self._labels[hostname][label_str] = {}
         self._labels[hostname][label_str]['metric'] = values
-        self._labels[hostname][label_str]['timestamp'] = int(time.time() * 1000)
+        self._labels[hostname][label_str]['timestamp'] = int(
+            time.time() * 1000)
 
-    def release_update_lock(self, hostname):
+    def release_update_lock(self, hostname: str) -> None:
         self._locks[hostname].release()
 
-    def metric_print(self):
+    def metric_print(self) -> str:
         # first print header information
-        out = "#TYPE {} {}\n#HELP {} {}\n".format(self._name, self._type, self._name, self._description)
+        out = "#TYPE {} {}\n#HELP {} {}\n".format(
+            self._name, self._type, self._name, self._description)
 
         # next print metric lines
         # to deal with thread safety we will avoid generator
@@ -65,7 +70,8 @@ class PrometheusMetric():
             with self._locks[hostname]:
                 for label_str in list(sorted(self._labels[hostname].keys())):
                     label_data = self._labels[hostname][label_str]
-                    out += "{}{{{}}} {} {}\n".format(self._name, label_str, label_data['metric'], label_data['timestamp'])
+                    out += "{}{{{}}} {} {}\n".format(
+                        self._name, label_str, label_data['metric'], label_data['timestamp'])
         return out
 
 
@@ -78,41 +84,42 @@ class WSGIServer_IPv6(WSGIServer):
 # on source code and not external metrics like this exporter
 # provides
 class PrometheusMetricStorage(threading.Thread, OutputDriver):
-    def __init__(self, hostname, uri, storage, template_storage):
+    def __init__(self, hostname: str, uri: str, storage: LabelStorage, template_storage: TemplateStorage) -> None:
         threading.Thread.__init__(self)
-        self._metrics = {}
+        self._metrics = {}  # type:  Dict[str, PrometheusMetric]
         self._hostname = hostname
         self._storage = storage
         self._template_storage = template_storage
         self._uri = uri
 
-    def add_metric(self, name, metric_type, description):
+    def add_metric(self, name: str, metric_type: str, description: str) -> None:
         self._metrics[name] = PrometheusMetric(name, metric_type, description)
 
-    def clear(self, hostname, metric_name):
+    def clear(self, hostname: str, metric_name: str) -> None:
         self._metrics[metric_name].clear(hostname)
 
-    def release_update_lock(self, hostname, metric_name):
+    def release_update_lock(self, hostname: str, metric_name: str) -> None:
         self._metrics[metric_name].release_update_lock(hostname)
 
-    def update_metric(self, hostname, metric_name, labels, value):
-        logger.info('update metric %s = %s, with labels %s', metric_name, value, labels)
+    def update_metric(self, hostname: str, metric_name: str, labels: Dict[str, str], value: str) -> None:
+        logger.info('update metric %s = %s, with labels %s',
+                    metric_name, value, labels)
         self._metrics[metric_name].update_metric(hostname, labels, value)
 
-    def metric_print(self):
+    def metric_print(self) -> str:
         out = ""
         for metric_name, metric_value in self._metrics.items():
             out += metric_value.metric_print()
             out += "\n"
         return out
 
-    def _print_metrics_http(self, context, request):
+    def _print_metrics_http(self, context, request) -> Response:
         res = Response()
         res.content_type = 'text/plain; version=0.0.4'
         res.text = self.metric_print()
         return res
 
-    def _dump_cache(self, context, request):
+    def _dump_cache(self, context, request) -> Response:
         res = Response()
         res.content_type = 'text/plain'
         res.text = "# template_storage"
@@ -121,17 +128,17 @@ class PrometheusMetricStorage(threading.Thread, OutputDriver):
         res.text += self._storage.dump()
         return res
 
-    def run(self):
+    def run(self) -> None:
         self._server.serve_forever()
 
-    def is_ipv4(self, hostname):
+    def is_ipv4(self, hostname: str) -> bool:
         try:
             ipaddress.ip_address(hostname)
             return True
         except ValueError:
             return False
 
-    def start_serving(self):
+    def start_serving(self) -> None:
         with Configurator() as config:
             config.add_route('metric', self._uri)
             config.add_route('dump_cache', '/dump')

@@ -14,12 +14,16 @@
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+from .driver import OutputDriver
+from .scheduler import JobScheduler
+from .storage import LabelStorage, TemplateStorage
+from .config import HostConfiguration, OIDConfiguration, ParserConfiguration
 from pysnmp.hlapi.asyncio import SnmpEngine, CommunityData, UdpTransportTarget, ObjectType, getCmd, bulkCmd, ContextData, isEndOfMib
 from pysnmp.error import PySnmpError
 from pysnmp.smi.view import MibViewController
 from pysnmp.smi.rfc1902 import ObjectIdentity
 from pysnmp.proto.rfc1902 import Integer32, Integer, Counter32, Gauge32, Unsigned32, TimeTicks, Counter64, \
-                                 OctetString, Opaque, IpAddress, Bits
+    OctetString, Opaque, IpAddress, Bits
 from pysnmp.proto.rfc1905 import endOfMibView
 from pyasn1.type.univ import Null
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -36,10 +40,11 @@ class SNMPConverter(object):
             "subtree-as-string": self.convert_key_as_value,
             "subtree-as-ip": self.convert_key_as_ip,
             "value": self.get_value,
-            "hex-as-ip": self.hex_as_ip
+            "hex-as-ip": self.hex_as_ip,
+            "extract_realm": self.extract_realm
         }
 
-    def convert(self, store_method, obj, base_oid, oid_suffix):
+    def convert(self, store_method, obj, base_oid, oid_suffix: str):
         key_obj_oid = obj[0]
         base_obj_oid = base_oid[0].getOid()
 
@@ -59,11 +64,14 @@ class SNMPConverter(object):
         data = self._obj[store_method](raw_value, key)
         return (str(key), data)
 
-
     def get_value(self, raw_value, key):
         dirty_data = str(raw_value)
         data = ''.join(list(s for s in dirty_data if s.isprintable()))
         return data
+
+    def extract_realm(self, raw_value, key):
+        value = self.get_value(raw_value, key)
+        return value.split('@')[1]
 
     def hex_as_ip(self, raw_value, key):
         out = []
@@ -80,7 +88,7 @@ class SNMPConverter(object):
         return out
 
     def convert_key_as_ip(self, raw_value, key):
-        return  str(key[-4:])
+        return str(key[-4:])
 
     def _snmp_obj_to_str(self, data):
         if isinstance(data, Null):
@@ -111,14 +119,15 @@ class SNMPConverter(object):
                         flattened_out.append(str(j))
                 else:
                     flattened_out.append(out[i])
-            outStr = '{}::{}'.format(flattened_out[0], '.'.join(flattened_out[1:]))
+            outStr = '{}::{}'.format(
+                flattened_out[0], '.'.join(flattened_out[1:]))
             return outStr
         else:
             return str(data)
 
 
 class SNMPQuerier(object):
-    def __init__(self, config, storage, template_storage, metrics):
+    def __init__(self, config: ParserConfiguration, storage: LabelStorage, template_storage: TemplateStorage, metrics: OutputDriver):
         self._config = config
         self._storage = storage
         self._template_storage = template_storage
@@ -169,22 +178,23 @@ class SNMPQuerier(object):
         data = []
         orig_oid = oids
         while 1:
-            (error_indicator, error_status, error_index, output) =  yield from func(
-                    engine,
-                    community,
-                    hostname,
-                    context,
-                    *args,
-                    oids,
-                    lookupMib=False)
+            (error_indicator, error_status, error_index, output) = yield from func(
+                engine,
+                community,
+                hostname,
+                context,
+                *args,
+                oids,
+                lookupMib=False)
 
             if error_indicator:
-                logger.error('snmp error while fetching %s : %s', oids, error_indicator)
+                logger.error('snmp error while fetching %s : %s',
+                             oids, error_indicator)
                 break
             elif error_status:
                 logger.error('%s',
-                    error_status.prettyPrint(),
-                )
+                             error_status.prettyPrint(),
+                             )
                 break
             if method == "get":
                 return [output]
@@ -201,10 +211,10 @@ class SNMPQuerier(object):
                 return data
             oids = output[-1][0]
 
-
-    async def query(self, oid, hostname, community, version, store_method, oid_suffix, query_type='get'):
-        logger.debug('check for OID  %s(%s) on %s with %s', oid, query_type, hostname, community)
-        if version == 'v2c' or version == 2:
+    async def query(self, oid: str, hostname: str, community: str, version: str, store_method: str, oid_suffix: str, query_type: str = 'get'):
+        logger.debug('check for OID  %s(%s) on %s with %s',
+                     oid, query_type, hostname, community)
+        if version == 'v2c' or version == '2':
             mpmodel = 1
         else:
             mpmodel = 9
@@ -219,16 +229,18 @@ class SNMPQuerier(object):
                 snmp_method = bulkCmd
                 positionals_args = [0, 25]
             else:
-                logger.error('unknow method %s, should be get or walk', query_type)
+                logger.error(
+                    'unknow method %s, should be get or walk', query_type)
                 raise ValueError('unknow method, should be get or walk')
             out_dict = {}
             logger.debug('start loop')
             for output_elem in await self.query_asyncio(query_type, snmp_method, self._engine, community, hostname_obj,
                                                         ContextData(), oid_obj, positionals_args
-                                                                                   ):
+                                                        ):
                 obj = output_elem[0]
                 logger.debug('query_result: %s', str(obj))
-                key, val = self.converter.convert(store_method, obj, oid_obj, oid_suffix)
+                key, val = self.converter.convert(
+                    store_method, obj, oid_obj, oid_suffix)
                 if key is None:
                     continue
                 out_dict[key] = val
@@ -247,7 +259,7 @@ class SNMPQuerier(object):
             logger.exception('errer when fetching oid: %s', e)
             return None
 
-    async def _update_template_label(self, host_config, module_name, template_group_name, metric):
+    async def _update_template_label(self, host_config: HostConfiguration, module_name: str, template_group_name: str, metric: OIDConfiguration):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -263,13 +275,15 @@ class SNMPQuerier(object):
         output = await self.query(oid, hostname, community, version, store_method, oid_suffix, metric_type)
         logger.debug(output)
         if metric_type == 'get':
-            self._template_storage.set_label(hostname, module_name, template_group_name, output)
+            self._template_storage.set_label(
+                hostname, module_name, template_group_name, output)
         else:
             for key, val in output.items():
                 logger.debug('set label %s = %s', key, val)
-                self._template_storage.set_label(hostname, module_name, template_group_name, val, key)
+                self._template_storage.set_label(
+                    hostname, module_name, template_group_name, val, key)
 
-    async def _update_label(self, host_config, module_name, label_group_name, label_name, metric):
+    async def _update_label(self, host_config: HostConfiguration, module_name: str, label_group_name: str, label_name: str, metric: OIDConfiguration):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -285,26 +299,30 @@ class SNMPQuerier(object):
         template = metric.community_template
         oid_suffix = metric.oid_suffix
 
-        logger.debug('template_name %s and template %s', template_name, template)
+        logger.debug('template_name %s and template %s',
+                     template_name, template)
         # resolve community
         for community, template_label_name, template_label_value in \
                 self._template_storage.resolve_community(hostname, module_name, template_name, template, community):
             logger.info('update label for %s: %s', hostname, metric_name)
             output = await self.query(oid, hostname, community, version, store_method, oid_suffix, metric_type)
-            logger.info('update label for %s: %s %s', hostname, metric_name, metric_type)
+            logger.info('update label for %s: %s %s',
+                        hostname, metric_name, metric_type)
             logger.debug(output)
             if metric_type == 'get':
                 if not filter_expr or filter_expr.match(val):
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
-                    template_label_value, output)
+                                            template_label_value, output)
             else:
+                self._storage.invalidate_cache(
+                    hostname, module_name, label_group_name, template_label_name, template_label_value, output)
                 for key, val in output.items():
                     if filter_expr and not filter_expr.match(val):
                         continue
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val,
                                             template_label_name, template_label_value, key)
 
-    async def _update_metric(self, host_config, module_name, metric):
+    async def _update_metric(self, host_config: HostConfiguration, module_name: str, metric: OIDConfiguration):
         # host_name
         community = host_config.community
         version = host_config.version
@@ -335,28 +353,32 @@ class SNMPQuerier(object):
                 if output == "":
                     logger.warning('no output for {}, skip it'.format(labels))
                 else:
-                    self._metrics.update_metric(hostname, metric_name, labels, output)
+                    self._metrics.update_metric(
+                        hostname, metric_name, labels, output)
             else:
                 for output_index, output_value in output.items():
-                    labels = self._storage.resolve_label(hostname, module_name, metric.label_group, template_label_name, template_label_value, output_index)
+                    labels = self._storage.resolve_label(
+                        hostname, module_name, metric.label_group, template_label_name, template_label_value, output_index)
                     if labels == {}:
                         # labels are filtered, just skip the update
                         continue
                     if output_value == "":
-                        logger.warning('no output for {}, skip it'.format(labels))
+                        logger.warning(
+                            'no output for {}, skip it'.format(labels))
                         continue
                     labels = {**host_config.static_labels, **labels}
-                    self._metrics.update_metric(hostname, metric_name, labels, output_value)
+                    self._metrics.update_metric(
+                        hostname, metric_name, labels, output_value)
             self._metrics.release_update_lock(hostname, metric_name)
 
-    async def warmup_template_cache(self, max_threads : int, scheduler) -> None:
+    async def warmup_template_cache(self, max_threads: int, scheduler: JobScheduler) -> None:
         loop = asyncio.get_event_loop()
         futurs = []
         for host_config in self._config.hosts:
             for module_name, module_data in host_config.items():
                 for template_group_name, template_group_data in module_data.template_label.items():
                     futur = loop.create_task(self._update_template_label(host_config, module_name,
-                                            template_group_name, template_group_data))
+                                                                         template_group_name, template_group_data))
                     futurs.append(futur)
                     scheduler.add_job(self._update_template_label, template_group_data.every, host_config, module_name,
                                       template_group_name, template_group_data)
@@ -367,15 +389,17 @@ class SNMPQuerier(object):
                     logger.error('error on template warmup')
                     logger.exception("details", e)
 
-    async def warmup_label_cache(self, max_threads : int, scheduler) -> None:
+    async def warmup_label_cache(self, max_threads: int, scheduler: JobScheduler) -> None:
         loop = asyncio.get_event_loop()
         futurs = []
         for host_config in self._config.hosts:
             for module_name, module_data in host_config.items():
                 for label_group_name, label_group_data in module_data.labels_group.items():
                     for label_name, label_data in label_group_data.items():
+                        if label_data.type == 'join':
+                            continue
                         futur = loop.create_task(self._update_label(host_config, module_name,
-                                                label_group_name, label_name, label_data))
+                                                                    label_group_name, label_name, label_data))
                         futurs.append(futur)
                         scheduler.add_job(self._update_label, label_data.every, host_config, module_name,
                                           label_group_name, label_name, label_data)
@@ -386,15 +410,32 @@ class SNMPQuerier(object):
                 logger.error('error on template warmup')
                 logger.exception("details", e)
 
-    async def warmup_metrics(self, max_threads, scheduler):
+    def warmup_join_cache(self) -> None:
+        for host_config in self._config.hosts:
+            for module_name, module_data in host_config.items():
+                for label_group_name, label_group_data in module_data.labels_group.items():
+                    key_elem = list(label_group_data.keys())
+                    left_label_group = key_elem[0]
+                    if label_group_data[left_label_group].type != 'join':
+                        continue
+                    left_join_key = label_group_data[left_label_group].oid
+                    right_label_group = key_elem[1]
+
+                    right_join_key = label_group_data[right_label_group].oid
+                    self._storage.set_join(host_config.hostname,
+                                           module_name, label_group_name, left_label_group, right_label_group, left_join_key, right_join_key)
+
+    async def warmup_metrics(self, max_threads: int, scheduler: JobScheduler) -> None:
         loop = asyncio.get_event_loop()
         futurs = []
         for host_config in self._config.hosts:
             for module_name, module_data in host_config.items():
                 for metric in module_data.metrics:
-                    futur = loop.create_task(self._update_metric(host_config, module_name, metric))
+                    futur = loop.create_task(self._update_metric(
+                        host_config, module_name, metric))
                     futurs.append(futur)
-                    scheduler.add_job(self._update_metric, metric.every, host_config, module_name, metric)
+                    scheduler.add_job(
+                        self._update_metric, metric.every, host_config, module_name, metric)
         for futur in asyncio.as_completed(futurs):
             try:
                 await futur

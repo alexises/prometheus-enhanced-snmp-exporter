@@ -13,28 +13,30 @@
 # You should have received a copy of the GNU General Public License
 # along with prometheus-enhanced-snmp-exporte. If not, see <https://www.gnu.org/licenses/>.
 
-def label_to_str(labels):
+from typing import Dict
+
+
+def label_to_str(labels: Dict[str, str]):
     labels_str = []
     for label_name, label_value in sorted(labels.items()):
-        label_str = '{}="{}"'.format(label_name, label_value.replace('"', '\\"'))
+        label_str = '{}="{}"'.format(
+            label_name, label_value.replace('"', '\\"'))
         labels_str.append(label_str)
     return ', '.join(labels_str)
 
+
 class OutputDriver(object):
-    def start_serving(self):
+    def start_serving(self) -> None:
         raise NotImplemented()
 
-    def add_metric(self, name, metric_type, description):
+    def add_metric(self, name: str, metric_type: str, description: str) -> None:
         raise NotImplemented()
 
-    def clear(self, hostname, metric_name):
+    def clear(self, hostname: str, metric_name: str) -> None:
         raise NotImplemented()
 
-    def release_update_lock(self, hostname, metric_name):
+    def release_update_lock(self, hostname: str, metric_name: str) -> None:
         raise NotImplemented()
 
-    def update_metric(self, hostname, metric_name, labels, value):
+    def update_metric(self, hostname: str, metric_name: str, labels: str, value: str) -> None:
         raise NotImplemented()
-
-
-
