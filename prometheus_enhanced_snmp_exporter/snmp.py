@@ -27,11 +27,24 @@ from pysnmp.proto.rfc1902 import Integer32, Integer, Counter32, Gauge32, Unsigne
 from pysnmp.proto.rfc1905 import endOfMibView
 from pyasn1.type.univ import Null
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Tuple
+from re import Pattern
 
 import logging
 
 logger = logging.getLogger(__name__)
 
+
+def filter_attr(filter_expr: Pattern, val: str) -> Tuple[bool, str]:
+    if not filter_expr:
+        return (True, val)
+    grp = filter_expr.match(val)
+    if not grp:
+        return (False, val)
+    grp_attr = list(grp.groups())
+    if grp_attr:
+        return (True, grp_attr[0])
+    return (True, val)
 
 class SNMPConverter(object):
     def __init__(self, mib_controller):
@@ -41,7 +54,8 @@ class SNMPConverter(object):
             "subtree-as-ip": self.convert_key_as_ip,
             "value": self.get_value,
             "hex-as-ip": self.hex_as_ip,
-            "extract_realm": self.extract_realm
+            "extract_realm": self.extract_realm,
+            "milli": self.milli
         }
 
     def convert(self, store_method, obj, base_oid, oid_suffix: str):
@@ -72,6 +86,10 @@ class SNMPConverter(object):
     def extract_realm(self, raw_value, key):
         value = self.get_value(raw_value, key)
         return value.split('@')[1]
+    
+    def milli(self, raw_value, key):
+        value = self.get_value(raw_value, key)
+        return float(value) / 1000
 
     def hex_as_ip(self, raw_value, key):
         out = []
@@ -310,14 +328,16 @@ class SNMPQuerier(object):
                         hostname, metric_name, metric_type)
             logger.debug(output)
             if metric_type == 'get':
-                if not filter_expr or filter_expr.match(val):
+                (filter_result, val) = filter_attr(filter_expr, val)
+                if filter_result:
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, template_label_name,
                                             template_label_value, output)
             else:
                 self._storage.invalidate_cache(
                     hostname, module_name, label_group_name, template_label_name, template_label_value, output)
                 for key, val in output.items():
-                    if filter_expr and not filter_expr.match(val):
+                    (filter_result, val) = filter_attr(filter_expr, val)
+                    if not filter_result:
                         continue
                     self._storage.set_label(hostname, module_name, label_group_name, label_name, val,
                                             template_label_name, template_label_value, key)
