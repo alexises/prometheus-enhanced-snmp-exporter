@@ -28,14 +28,13 @@ from pysnmp.proto.rfc1905 import endOfMibView
 from pyasn1.type.univ import Null
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple
-from re import Pattern
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def filter_attr(filter_expr: Pattern, val: str) -> Tuple[bool, str]:
+def filter_attr(filter_expr, val: str) -> Tuple[bool, str]:
     if not filter_expr:
         return (True, val)
     grp = filter_expr.match(val)
