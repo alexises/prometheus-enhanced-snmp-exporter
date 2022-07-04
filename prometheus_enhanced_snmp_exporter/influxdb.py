@@ -18,6 +18,7 @@ from .scheduler import JobScheduler
 from datetime import datetime
 import math
 from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBServerError, InfluxDBClientError
 from datetime import datetime
 import threading
 from threading import Lock
@@ -163,8 +164,8 @@ class InfluxDBDriver(OutputDriver, threading.Thread):
         self.start()
 
     def run(self) -> None:
-        try:
-            while True:
+        while True:
+            try:
                 start_time = datetime.now()
                 logger.info('start push to influx')
                 self._push_entry()
@@ -172,17 +173,27 @@ class InfluxDBDriver(OutputDriver, threading.Thread):
                 logger.info('end push to influx')
                 delta = (end_time - start_time)
                 sleep_time = 10 - delta.total_seconds()
-                logger.info('fuck')
                 if sleep_time < 0:
                     continue
                 logger.info('next loop on {}'.format(sleep_time))
                 time.sleep(sleep_time)
-        except Exception as e:
-            logger.error(e)
+            except Exception as e:
+                logger.error(e)
 
     def _push_entry(self) -> None:
         data = []
         for measurement, store in self._storage.items():
             data += store.push_to_influx()
         for chunck in grouped(data, 1000):
-            self._influx.write_points(chunck)
+            for i in range(3):
+                try:
+                    self._influx.write_points(chunck)
+                except InfluxDBServerError:
+                    pass
+                except InfluxDBClientError:
+                    pass
+                else:
+                    break
+                time.sleep(5)
+
+
