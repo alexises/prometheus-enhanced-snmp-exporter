@@ -182,6 +182,7 @@ Sometime, we need to convert output before storing the attribute, it can be ache
 * `subtree-as-ip`: convert subpath as an ipv4 address 
 * `value`: use value as this
 * `hex-as-ip`: transform hexadecimal value into an ipv4 addrees
+* `hex-as-mac`: transform hexadecimal value into an mac address
 * `extract_realm` : extract a realm from an adresse `foo@domain.com` is transformed into `domain.com` it usefull when parsing email of radius/PPP related attribute
 * `milli` : divide by 1000 the result, usefull on power sensor metrics conversion
 
