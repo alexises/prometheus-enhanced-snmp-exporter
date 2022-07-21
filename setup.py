@@ -18,7 +18,7 @@ class InstallSystemdService(install):
 
 setup(
     name='prometheus-enhanced-snmp-exporter',
-    version='0.4alpha3',
+    version='0.4alpha4',
     packages=['prometheus_enhanced_snmp_exporter'],
     scripts=['bin/prometheus-enhanced-snmp-exporter'],
     license='GPLv3',

@@ -53,6 +53,7 @@ class SNMPConverter(object):
             "subtree-as-ip": self.convert_key_as_ip,
             "value": self.get_value,
             "hex-as-ip": self.hex_as_ip,
+            "hex-as-mac": self.hex_as_mac,
             "extract_realm": self.extract_realm,
             "milli": self.milli
         }
@@ -95,6 +96,16 @@ class SNMPConverter(object):
         for i in range(4):
             out.append(str(raw_value[i]))
         return '.'.join(out)
+    
+    def hex_as_mac(self, raw_value, key):
+        out = []
+        for i in range(6):
+            hex_value = hex(raw_value[i])
+            hex_data = hex_value.split('x')[1]
+            if len(hex_data) == 1:
+                hex_data = f'0{ hex_data }'
+            out.append(hex_data)
+        return ':'.join(out)
 
     def convert_key_as_value(self, raw_value, key):
         size = int(key[0])
