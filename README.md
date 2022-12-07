@@ -1,4 +1,4 @@
-# Premetheus Enhanced SNMP exporter
+# Prometheus Enhanced SNMP exporter
 
 This projects provides a new implementation of SNMP exporter for prometheus.
 
